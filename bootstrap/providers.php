@@ -1,0 +1,25 @@
+<?php
+
+return [
+    App\Providers\AppServiceProvider::class,
+    App\Providers\IamServiceProvider::class,
+    App\Providers\FoundationServiceProvider::class,
+    App\Providers\AuditServiceProvider::class,
+    App\Providers\ApprovalServiceProvider::class,
+    App\Providers\CRMServiceProvider::class,
+    App\Providers\CommercialServiceProvider::class,
+    App\Providers\DocumentServiceProvider::class,
+    App\Providers\NotificationServiceProvider::class,
+    App\Providers\ProjectServiceProvider::class,
+    App\Providers\CostControlServiceProvider::class,
+    App\Providers\ProcurementServiceProvider::class,
+    App\Providers\InventoryServiceProvider::class,
+    App\Providers\SubcontractServiceProvider::class,
+    App\Providers\HrServiceProvider::class,
+    App\Providers\EquipmentServiceProvider::class,
+    App\Providers\FinanceServiceProvider::class,
+    App\Providers\AccountingServiceProvider::class,
+    App\Providers\FinanceAccountingIntegrationServiceProvider::class,
+    App\Providers\BiServiceProvider::class,
+    App\Providers\NetworkServiceProvider::class,
+];

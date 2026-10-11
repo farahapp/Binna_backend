@@ -1,0 +1,32 @@
+<?php
+declare(strict_types=1);
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    protected $connection = 'tenant';
+
+    public function up(): void
+    {
+        Schema::connection('tenant')->create('collections', function (Blueprint $table) {
+            $table->uuid('id')->primary();
+            $table->uuid('receivable_id');
+            $table->uuid('invoice_id'); // denormalized for query convenience
+            $table->decimal('amount', 15, 4);
+            $table->date('collection_date');
+            $table->string('payment_method', 30); // CASH | BANK_TRANSFER | CHEQUE
+            $table->string('reference')->nullable();
+            $table->text('notes')->nullable();
+            $table->uuid('recorded_by')->nullable();
+            $table->string('tenant_slug');
+            $table->timestamps();
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::connection('tenant')->dropIfExists('collections');
+    }
+};

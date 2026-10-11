@@ -1,0 +1,12 @@
+<?php
+declare(strict_types=1);
+namespace App\Procurement\Events;
+
+class PurchaseRequestSubmitted
+{
+    public function __construct(
+        public readonly string $purchaseRequestId,
+        public readonly string $tenantSlug,
+        public readonly \DateTimeImmutable $occurredAt,
+    ) {}
+}

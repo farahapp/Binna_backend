@@ -1,0 +1,1350 @@
+PHP Warning:  Version warning: Imagick was compiled against ImageMagick version 1809 but version 1810 is loaded. Imagick will run but may behave surprisingly in Unknown on line 0
+
+Warning: Version warning: Imagick was compiled against ImageMagick version 1809 but version 1810 is loaded. Imagick will run but may behave surprisingly in Unknown on line 0
+
+Warning: Version warning: Imagick was compiled against ImageMagick version 1809 but version 1810 is loaded. Imagick will run but may behave surprisingly in Unknown on line 0
+PHP Warning:  Version warning: Imagick was compiled against ImageMagick version 1809 but version 1810 is loaded. Imagick will run but may behave surprisingly in Unknown on line 0
+
+   WARN  Metadata found in doc-comment for method Tests\Feature\Accounting\AccountingFoundationTest::accounts_table_exists_in_tenant_schema(). Metadata in doc-comments is deprecated and will no longer be supported in PHPUnit 12. Update your test code to use attributes instead.
+
+   WARN  Metadata found in doc-comment for method Tests\Feature\Accounting\AccountingFoundationTest::accounting_periods_table_exists_in_tenant_schema(). Metadata in doc-comments is deprecated and will no longer be supported in PHPUnit 12. Update your test code to use attributes instead.
+
+   WARN  Metadata found in doc-comment for method Tests\Feature\Accounting\AccountingFoundationTest::journal_entries_table_exists_in_tenant_schema(). Metadata in doc-comments is deprecated and will no longer be supported in PHPUnit 12. Update your test code to use attributes instead.
+
+   WARN  Metadata found in doc-comment for method Tests\Feature\Accounting\AccountingFoundationTest::journal_lines_table_exists_in_tenant_schema(). Metadata in doc-comments is deprecated and will no longer be supported in PHPUnit 12. Update your test code to use attributes instead.
+
+   WARN  Metadata found in doc-comment for method Tests\Feature\Accounting\AccountingFoundationTest::posting_rules_table_exists_in_tenant_schema(). Metadata in doc-comments is deprecated and will no longer be supported in PHPUnit 12. Update your test code to use attributes instead.
+
+   WARN  Metadata found in doc-comment for method Tests\Feature\Accounting\AccountingFoundationTest::accounts_table_has_no_tenant_id_column(). Metadata in doc-comments is deprecated and will no longer be supported in PHPUnit 12. Update your test code to use attributes instead.
+
+   WARN  Metadata found in doc-comment for method Tests\Feature\Accounting\AccountingFoundationTest::journal_entries_table_has_no_tenant_id_column(). Metadata in doc-comments is deprecated and will no longer be supported in PHPUnit 12. Update your test code to use attributes instead.
+
+   WARN  Metadata found in doc-comment for method Tests\Feature\Accounting\AccountingFoundationTest::accounting_periods_table_has_no_tenant_id_column(). Metadata in doc-comments is deprecated and will no longer be supported in PHPUnit 12. Update your test code to use attributes instead.
+
+   WARN  Metadata found in doc-comment for method Tests\Feature\Accounting\AccountingFoundationTest::accounts_table_has_tenant_slug_column(). Metadata in doc-comments is deprecated and will no longer be supported in PHPUnit 12. Update your test code to use attributes instead.
+
+   WARN  Metadata found in doc-comment for method Tests\Feature\Accounting\AccountingFoundationTest::journal_entries_table_has_tenant_slug_column(). Metadata in doc-comments is deprecated and will no longer be supported in PHPUnit 12. Update your test code to use attributes instead.
+
+   WARN  Metadata found in doc-comment for method Tests\Feature\Accounting\AccountingFoundationTest::account_model_uses_tenant_connection(). Metadata in doc-comments is deprecated and will no longer be supported in PHPUnit 12. Update your test code to use attributes instead.
+
+   WARN  Metadata found in doc-comment for method Tests\Feature\Accounting\AccountingFoundationTest::accounting_period_model_uses_tenant_connection(). Metadata in doc-comments is deprecated and will no longer be supported in PHPUnit 12. Update your test code to use attributes instead.
+
+   WARN  Metadata found in doc-comment for method Tests\Feature\Accounting\AccountingFoundationTest::journal_entry_model_uses_tenant_connection(). Metadata in doc-comments is deprecated and will no longer be supported in PHPUnit 12. Update your test code to use attributes instead.
+
+   WARN  Metadata found in doc-comment for method Tests\Feature\Accounting\AccountingFoundationTest::journal_line_model_uses_tenant_connection(). Metadata in doc-comments is deprecated and will no longer be supported in PHPUnit 12. Update your test code to use attributes instead.
+
+   WARN  Metadata found in doc-comment for method Tests\Feature\Accounting\AccountingFoundationTest::account_has_uuid_primary_key(). Metadata in doc-comments is deprecated and will no longer be supported in PHPUnit 12. Update your test code to use attributes instead.
+
+   WARN  Metadata found in doc-comment for method Tests\Feature\Accounting\AccountingFoundationTest::journal_entry_has_uuid_primary_key(). Metadata in doc-comments is deprecated and will no longer be supported in PHPUnit 12. Update your test code to use attributes instead.
+
+   WARN  Metadata found in doc-comment for method Tests\Feature\Accounting\AccountingFoundationTest::account_defaults_to_active_status(). Metadata in doc-comments is deprecated and will no longer be supported in PHPUnit 12. Update your test code to use attributes instead.
+
+   WARN  Metadata found in doc-comment for method Tests\Feature\Accounting\AccountingFoundationTest::accounting_period_defaults_to_open_status(). Metadata in doc-comments is deprecated and will no longer be supported in PHPUnit 12. Update your test code to use attributes instead.
+
+   WARN  Metadata found in doc-comment for method Tests\Feature\Accounting\AccountingFoundationTest::journal_entry_defaults_to_draft_status(). Metadata in doc-comments is deprecated and will no longer be supported in PHPUnit 12. Update your test code to use attributes instead.
+
+   WARN  Metadata found in doc-comment for method Tests\Feature\Accounting\AccountingFoundationTest::account_type_helpers_work_correctly(). Metadata in doc-comments is deprecated and will no longer be supported in PHPUnit 12. Update your test code to use attributes instead.
+
+   WARN  Metadata found in doc-comment for method Tests\Feature\Accounting\AccountingFoundationTest::journal_entry_has_many_lines(). Metadata in doc-comments is deprecated and will no longer be supported in PHPUnit 12. Update your test code to use attributes instead.
+
+   WARN  Metadata found in doc-comment for method Tests\Feature\Accounting\AccountingFoundationTest::journal_line_debit_credit_helpers_work(). Metadata in doc-comments is deprecated and will no longer be supported in PHPUnit 12. Update your test code to use attributes instead.
+
+   WARN  Metadata found in doc-comment for method Tests\Feature\Accounting\AccountingFoundationTest::duplicate_account_code_is_rejected(). Metadata in doc-comments is deprecated and will no longer be supported in PHPUnit 12. Update your test code to use attributes instead.
+
+   WARN  Metadata found in doc-comment for method Tests\Feature\Accounting\AccountingFoundationTest::duplicate_period_name_is_rejected(). Metadata in doc-comments is deprecated and will no longer be supported in PHPUnit 12. Update your test code to use attributes instead.
+
+   WARN  Metadata found in doc-comment for method Tests\Feature\Accounting\AccountingFoundationTest::journal_entry_posted_event_can_be_instantiated(). Metadata in doc-comments is deprecated and will no longer be supported in PHPUnit 12. Update your test code to use attributes instead.
+
+   WARN  Metadata found in doc-comment for method Tests\Feature\Accounting\AccountingFoundationTest::period_closed_event_can_be_instantiated(). Metadata in doc-comments is deprecated and will no longer be supported in PHPUnit 12. Update your test code to use attributes instead.
+
+   WARN  Metadata found in doc-comment for method Tests\Feature\Accounting\AccountingHttpApiTest::returns_401_without_token_for_accounts(). Metadata in doc-comments is deprecated and will no longer be supported in PHPUnit 12. Update your test code to use attributes instead.
+
+   WARN  Metadata found in doc-comment for method Tests\Feature\Accounting\AccountingHttpApiTest::returns_401_without_token_for_journal_entries(). Metadata in doc-comments is deprecated and will no longer be supported in PHPUnit 12. Update your test code to use attributes instead.
+
+   WARN  Metadata found in doc-comment for method Tests\Feature\Accounting\AccountingHttpApiTest::create_account_returns_201(). Metadata in doc-comments is deprecated and will no longer be supported in PHPUnit 12. Update your test code to use attributes instead.
+
+   WARN  Metadata found in doc-comment for method Tests\Feature\Accounting\AccountingHttpApiTest::create_account_returns_422_for_invalid_type(). Metadata in doc-comments is deprecated and will no longer be supported in PHPUnit 12. Update your test code to use attributes instead.
+
+   WARN  Metadata found in doc-comment for method Tests\Feature\Accounting\AccountingHttpApiTest::get_account_balance_returns_200(). Metadata in doc-comments is deprecated and will no longer be supported in PHPUnit 12. Update your test code to use attributes instead.
+
+   WARN  Metadata found in doc-comment for method Tests\Feature\Accounting\AccountingHttpApiTest::create_period_returns_201(). Metadata in doc-comments is deprecated and will no longer be supported in PHPUnit 12. Update your test code to use attributes instead.
+
+   WARN  Metadata found in doc-comment for method Tests\Feature\Accounting\AccountingHttpApiTest::close_period_returns_200_with_closed_status(). Metadata in doc-comments is deprecated and will no longer be supported in PHPUnit 12. Update your test code to use attributes instead.
+
+   WARN  Metadata found in doc-comment for method Tests\Feature\Accounting\AccountingHttpApiTest::is_period_open_returns_correct_value(). Metadata in doc-comments is deprecated and will no longer be supported in PHPUnit 12. Update your test code to use attributes instead.
+
+   WARN  Metadata found in doc-comment for method Tests\Feature\Accounting\AccountingHttpApiTest::create_journal_entry_returns_201_with_lines(). Metadata in doc-comments is deprecated and will no longer be supported in PHPUnit 12. Update your test code to use attributes instead.
+
+   WARN  Metadata found in doc-comment for method Tests\Feature\Accounting\AccountingHttpApiTest::post_journal_entry_returns_200_with_posted_status(). Metadata in doc-comments is deprecated and will no longer be supported in PHPUnit 12. Update your test code to use attributes instead.
+
+   WARN  Metadata found in doc-comment for method Tests\Feature\Accounting\AccountingHttpApiTest::get_journal_entry_returns_entry_with_lines(). Metadata in doc-comments is deprecated and will no longer be supported in PHPUnit 12. Update your test code to use attributes instead.
+
+   WARN  Metadata found in doc-comment for method Tests\Feature\Accounting\AccountingHttpApiTest::get_trial_balance_returns_200(). Metadata in doc-comments is deprecated and will no longer be supported in PHPUnit 12. Update your test code to use attributes instead.
+
+   WARN  Metadata found in doc-comment for method Tests\Feature\Accounting\AccountingHttpApiTest::create_posting_rule_returns_201(). Metadata in doc-comments is deprecated and will no longer be supported in PHPUnit 12. Update your test code to use attributes instead.
+
+   WARN  Metadata found in doc-comment for method Tests\Feature\Accounting\AccountingServiceTest::create_account_persists_and_returns_model(). Metadata in doc-comments is deprecated and will no longer be supported in PHPUnit 12. Update your test code to use attributes instead.
+
+   WARN  Metadata found in doc-comment for method Tests\Feature\Accounting\AccountingServiceTest::create_account_rejects_invalid_type(). Metadata in doc-comments is deprecated and will no longer be supported in PHPUnit 12. Update your test code to use attributes instead.
+
+   WARN  Metadata found in doc-comment for method Tests\Feature\Accounting\AccountingServiceTest::create_account_rejects_duplicate_code(). Metadata in doc-comments is deprecated and will no longer be supported in PHPUnit 12. Update your test code to use attributes instead.
+
+   WARN  Metadata found in doc-comment for method Tests\Feature\Accounting\AccountingServiceTest::deactivate_account_changes_status(). Metadata in doc-comments is deprecated and will no longer be supported in PHPUnit 12. Update your test code to use attributes instead.
+
+   WARN  Metadata found in doc-comment for method Tests\Feature\Accounting\AccountingServiceTest::create_period_persists_as_open(). Metadata in doc-comments is deprecated and will no longer be supported in PHPUnit 12. Update your test code to use attributes instead.
+
+   WARN  Metadata found in doc-comment for method Tests\Feature\Accounting\AccountingServiceTest::create_period_rejects_duplicate_name(). Metadata in doc-comments is deprecated and will no longer be supported in PHPUnit 12. Update your test code to use attributes instead.
+
+   WARN  Metadata found in doc-comment for method Tests\Feature\Accounting\AccountingServiceTest::close_period_changes_status_and_fires_event(). Metadata in doc-comments is deprecated and will no longer be supported in PHPUnit 12. Update your test code to use attributes instead.
+
+   WARN  Metadata found in doc-comment for method Tests\Feature\Accounting\AccountingServiceTest::cannot_close_already_closed_period(). Metadata in doc-comments is deprecated and will no longer be supported in PHPUnit 12. Update your test code to use attributes instead.
+
+   WARN  Metadata found in doc-comment for method Tests\Feature\Accounting\AccountingServiceTest::is_period_open_returns_correct_value(). Metadata in doc-comments is deprecated and will no longer be supported in PHPUnit 12. Update your test code to use attributes instead.
+
+   WARN  Metadata found in doc-comment for method Tests\Feature\Accounting\AccountingServiceTest::create_journal_entry_persists_as_draft_with_lines(). Metadata in doc-comments is deprecated and will no longer be supported in PHPUnit 12. Update your test code to use attributes instead.
+
+   WARN  Metadata found in doc-comment for method Tests\Feature\Accounting\AccountingServiceTest::create_journal_entry_rejects_single_line(). Metadata in doc-comments is deprecated and will no longer be supported in PHPUnit 12. Update your test code to use attributes instead.
+
+   WARN  Metadata found in doc-comment for method Tests\Feature\Accounting\AccountingServiceTest::post_journal_entry_changes_status_and_fires_event(). Metadata in doc-comments is deprecated and will no longer be supported in PHPUnit 12. Update your test code to use attributes instead.
+
+   WARN  Metadata found in doc-comment for method Tests\Feature\Accounting\AccountingServiceTest::post_rejects_unbalanced_entry(). Metadata in doc-comments is deprecated and will no longer be supported in PHPUnit 12. Update your test code to use attributes instead.
+
+   WARN  Metadata found in doc-comment for method Tests\Feature\Accounting\AccountingServiceTest::post_rejects_entry_in_closed_period(). Metadata in doc-comments is deprecated and will no longer be supported in PHPUnit 12. Update your test code to use attributes instead.
+
+   WARN  Metadata found in doc-comment for method Tests\Feature\Accounting\AccountingServiceTest::cannot_post_already_posted_entry(). Metadata in doc-comments is deprecated and will no longer be supported in PHPUnit 12. Update your test code to use attributes instead.
+
+   WARN  Metadata found in doc-comment for method Tests\Feature\Accounting\AccountingServiceTest::reverse_journal_entry_creates_opposite_entry(). Metadata in doc-comments is deprecated and will no longer be supported in PHPUnit 12. Update your test code to use attributes instead.
+
+   WARN  Metadata found in doc-comment for method Tests\Feature\Accounting\AccountingServiceTest::get_account_balance_returns_correct_balance(). Metadata in doc-comments is deprecated and will no longer be supported in PHPUnit 12. Update your test code to use attributes instead.
+
+   WARN  Metadata found in doc-comment for method Tests\Feature\Accounting\AccountingServiceTest::get_trial_balance_returns_balanced_result(). Metadata in doc-comments is deprecated and will no longer be supported in PHPUnit 12. Update your test code to use attributes instead.
+
+   WARN  Metadata found in doc-comment for method Tests\Feature\Accounting\AccountingServiceTest::create_posting_rule_persists(). Metadata in doc-comments is deprecated and will no longer be supported in PHPUnit 12. Update your test code to use attributes instead.
+
+   FAIL  Tests\Feature\Accounting\AccountingFoundationTest
+  ⨯ accounts table exists in tenant schema
+  ⨯ accounting periods table exists in tenant schema
+  ⨯ journal entries table exists in tenant schema
+  ⨯ journal lines table exists in tenant schema
+  ⨯ posting rules table exists in tenant schema
+  ⨯ accounts table has no tenant id column
+  ⨯ journal entries table has no tenant id column
+  ⨯ accounting periods table has no tenant id column
+  ⨯ accounts table has tenant slug column
+  ⨯ journal entries table has tenant slug column
+  ⨯ account model uses tenant connection
+  ⨯ accounting period model uses tenant connection
+  ⨯ journal entry model uses tenant connection
+  ⨯ journal line model uses tenant connection
+  ⨯ account has uuid primary key
+  ⨯ journal entry has uuid primary key
+  ⨯ account defaults to active status
+  ⨯ accounting period defaults to open status
+  ⨯ journal entry defaults to draft status
+  ⨯ account type helpers work correctly
+  ⨯ journal entry has many lines
+  ⨯ journal line debit credit helpers work
+  ⨯ duplicate account code is rejected
+  ⨯ duplicate period name is rejected
+  ⨯ journal entry posted event can be instantiated
+  ⨯ period closed event can be instantiated
+
+   FAIL  Tests\Feature\Accounting\AccountingHttpApiTest
+  ⨯ returns 401 without token for accounts
+  ⨯ returns 401 without token for journal entries
+  ⨯ create account returns 201
+  ⨯ create account returns 422 for invalid type
+  ⨯ get account balance returns 200
+  ⨯ create period returns 201
+  ⨯ close period returns 200 with closed status
+  ⨯ is period open returns correct value
+  ⨯ create journal entry returns 201 with lines
+  ⨯ post journal entry returns 200 with posted status
+  ⨯ get journal entry returns entry with lines
+  ⨯ get trial balance returns 200
+  ⨯ create posting rule returns 201
+
+   FAIL  Tests\Feature\Accounting\AccountingServiceTest
+  ⨯ create account persists and returns model
+  ⨯ create account rejects invalid type
+  ⨯ create account rejects duplicate code
+  ⨯ deactivate account changes status
+  ⨯ create period persists as open
+  ⨯ create period rejects duplicate name
+  ⨯ close period changes status and fires event
+  ⨯ cannot close already closed period
+  ⨯ is period open returns correct value
+  ⨯ create journal entry persists as draft with lines
+  ⨯ create journal entry rejects single line
+  ⨯ post journal entry changes status and fires event
+  ⨯ post rejects unbalanced entry
+  ⨯ post rejects entry in closed period
+  ⨯ cannot post already posted entry
+  ⨯ reverse journal entry creates opposite entry
+  ⨯ get account balance returns correct balance
+  ⨯ get trial balance returns balanced result
+  ⨯ create posting rule persists
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Accounting\AccountingFoundationTest…  QueryException   
+  SQLSTATE[42S02]: Base table or view not found: 1051 Unknown table 'binaa2_testing.accounting_periods,binaa2_testing.accounts,binaa2_testing.actual_costs,binaa2_testing.approval_requests,binaa2_tes' (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: binaa2_testing, SQL: drop table `binaa2_testing`.`accounting_periods`, `binaa2_testing`.`accounts`, `binaa2_testing`.`actual_costs`, `binaa2_testing`.`approval_requests`, `binaa2_testing`.`assets`, `binaa2_testing`.`attendance_records`, `binaa2_testing`.`audit_entries`, `binaa2_testing`.`bank_accounts`, `binaa2_testing`.`bank_reconciliations`, `binaa2_testing`.`bank_transactions`, `binaa2_testing`.`boq_items`, `binaa2_testing`.`boq_sections`, `binaa2_testing`.`boqs`, `binaa2_testing`.`budget_lines`, `binaa2_testing`.`budget_revisions`, `binaa2_testing`.`budgets`, `binaa2_testing`.`cache`, `binaa2_testing`.`cache_locks`, `binaa2_testing`.`cash_accounts`, `binaa2_testing`.`cash_transactions`, `binaa2_testing`.`clients`, `binaa2_testing`.`collections`, `binaa2_testing`.`commitments`, `binaa2_testing`.`contacts`, `binaa2_testing`.`contract_variations`, `binaa2_testing`.`contracts`, `binaa2_testing`.`cost_codes`, `binaa2_testing`.`crm_activities`, `binaa2_testing`.`daily_reports`, `binaa2_testing`.`document_categories`, `binaa2_testing`.`document_versions`, `binaa2_testing`.`documents`, `binaa2_testing`.`employee_cost_allocations`, `binaa2_testing`.`employee_project_assignments`, `binaa2_testing`.`employees`, `binaa2_testing`.`employment_records`, `binaa2_testing`.`equipment_allocations`, `binaa2_testing`.`equipment_cost_allocations`, `binaa2_testing`.`estimates`, `binaa2_testing`.`failed_jobs`, `binaa2_testing`.`goods_receipt_notes`, `binaa2_testing`.`grn_items`, `binaa2_testing`.`inventory_items`, `binaa2_testing`.`invoice_items`, `binaa2_testing`.`invoices`, `binaa2_testing`.`job_batches`, `binaa2_testing`.`jobs`, `binaa2_testing`.`journal_entries`, `binaa2_testing`.`journal_lines`, `binaa2_testing`.`leads`, `binaa2_testing`.`leave_requests`, `binaa2_testing`.`maintenance_records`, `binaa2_testing`.`migrations`, `binaa2_testing`.`model_has_roles`, `binaa2_testing`.`notification_history`, `binaa2_testing`.`notification_preferences`, `binaa2_testing`.`notifications`, `binaa2_testing`.`opportunities`, `binaa2_testing`.`payments`, `binaa2_testing`.`permissions`, `binaa2_testing`.`personal_access_tokens`, `binaa2_testing`.`po_items`, `binaa2_testing`.`posting_rules`, `binaa2_testing`.`project_activities`, `binaa2_testing`.`project_milestones`, `binaa2_testing`.`project_team`, `binaa2_testing`.`projects`, `binaa2_testing`.`purchase_orders`, `binaa2_testing`.`purchase_requests`, `binaa2_testing`.`quotations`, `binaa2_testing`.`receivables`, `binaa2_testing`.`rfqs`, `binaa2_testing`.`role_has_permissions`, `binaa2_testing`.`roles`, `binaa2_testing`.`stock_levels`, `binaa2_testing`.`stock_movements`, `binaa2_testing`.`subcontract_agreements`, `binaa2_testing`.`subcontract_certificates`, `binaa2_testing`.`subcontract_progresses`, `binaa2_testing`.`subcontract_scopes`, `binaa2_testing`.`supplier_quotations`, `binaa2_testing`.`tenant_migrations`, `binaa2_testing`.`tenant_settings`, `binaa2_testing`.`tenant_suppliers`, `binaa2_testing`.`tenants`, `binaa2_testing`.`tender_invitations`, `binaa2_testing`.`tender_responses`, `binaa2_testing`.`tenders`, `binaa2_testing`.`users`)
+
+  at vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+    834▕             $exceptionType = $this->isUniqueConstraintError($e)
+    835▕                 ? UniqueConstraintViolationException::class
+    836▕                 : QueryException::class;
+    837▕ 
+  ➜ 838▕             throw new $exceptionType(
+    839▕                 $this->getNameWithReadWriteType(),
+    840▕                 $query,
+    841▕                 $this->prepareBindings($bindings),
+    842▕                 $e,
+
+  1   vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+
+  2   vendor\laravel\framework\src\Illuminate\Database\Connection.php:584
+      NunoMaduro\Collision\Exceptions\TestException::("SQLSTATE[42S02]: Base table or view not found: 1051 Unknown table 'binaa2_testing.accounting_periods,binaa2_testing.accounts,binaa2_testing.actual_costs,binaa2_testing.approval_requests,binaa2_tes'")
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Accounting\AccountingFoundationTest…  QueryException   
+  SQLSTATE[42S02]: Base table or view not found: 1146 Table 'binaa2_testing.migrations' doesn't exist (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: binaa2_testing, SQL: select `migration` from `migrations` order by `batch` asc, `migration` asc)
+
+  at vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+    834▕             $exceptionType = $this->isUniqueConstraintError($e)
+    835▕                 ? UniqueConstraintViolationException::class
+    836▕                 : QueryException::class;
+    837▕ 
+  ➜ 838▕             throw new $exceptionType(
+    839▕                 $this->getNameWithReadWriteType(),
+    840▕                 $query,
+    841▕                 $this->prepareBindings($bindings),
+    842▕                 $e,
+
+  1   vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+
+  2   vendor\laravel\framework\src\Illuminate\Database\Connection.php:425
+      NunoMaduro\Collision\Exceptions\TestException::("SQLSTATE[42S02]: Base table or view not found: 1146 Table 'binaa2_testing.migrations' doesn't exist")
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Accounting\AccountingFoundationTest…  QueryException   
+  SQLSTATE[42S01]: Base table or view already exists: 1050 Table 'migrations' already exists (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: binaa2_testing, SQL: create table `migrations` (`id` int unsigned not null auto_increment primary key, `migration` varchar(255) not null, `batch` int not null) default character set utf8mb4 collate 'utf8mb4_unicode_ci')
+
+  at vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+    834▕             $exceptionType = $this->isUniqueConstraintError($e)
+    835▕                 ? UniqueConstraintViolationException::class
+    836▕                 : QueryException::class;
+    837▕ 
+  ➜ 838▕             throw new $exceptionType(
+    839▕                 $this->getNameWithReadWriteType(),
+    840▕                 $query,
+    841▕                 $this->prepareBindings($bindings),
+    842▕                 $e,
+
+  1   vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+
+  2   vendor\laravel\framework\src\Illuminate\Database\Connection.php:584
+      NunoMaduro\Collision\Exceptions\TestException::("SQLSTATE[42S01]: Base table or view already exists: 1050 Table 'migrations' already exists")
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Accounting\AccountingFoundationTest…  QueryException   
+  SQLSTATE[42S02]: Base table or view not found: 1051 Unknown table 'binaa2_testing.migrations,binaa2_testing.users' (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: binaa2_testing, SQL: drop table `binaa2_testing`.`migrations`, `binaa2_testing`.`users`)
+
+  at vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+    834▕             $exceptionType = $this->isUniqueConstraintError($e)
+    835▕                 ? UniqueConstraintViolationException::class
+    836▕                 : QueryException::class;
+    837▕ 
+  ➜ 838▕             throw new $exceptionType(
+    839▕                 $this->getNameWithReadWriteType(),
+    840▕                 $query,
+    841▕                 $this->prepareBindings($bindings),
+    842▕                 $e,
+
+  1   vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+
+  2   vendor\laravel\framework\src\Illuminate\Database\Connection.php:584
+      NunoMaduro\Collision\Exceptions\TestException::("SQLSTATE[42S02]: Base table or view not found: 1051 Unknown table 'binaa2_testing.migrations,binaa2_testing.users'")
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Accounting\AccountingFoundationTest…  QueryException   
+  SQLSTATE[42S01]: Base table or view already exists: 1050 Table 'migrations' already exists (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: binaa2_testing, SQL: create table `migrations` (`id` int unsigned not null auto_increment primary key, `migration` varchar(255) not null, `batch` int not null) default character set utf8mb4 collate 'utf8mb4_unicode_ci')
+
+  at vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+    834▕             $exceptionType = $this->isUniqueConstraintError($e)
+    835▕                 ? UniqueConstraintViolationException::class
+    836▕                 : QueryException::class;
+    837▕ 
+  ➜ 838▕             throw new $exceptionType(
+    839▕                 $this->getNameWithReadWriteType(),
+    840▕                 $query,
+    841▕                 $this->prepareBindings($bindings),
+    842▕                 $e,
+
+  1   vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+
+  2   vendor\laravel\framework\src\Illuminate\Database\Connection.php:584
+      NunoMaduro\Collision\Exceptions\TestException::("SQLSTATE[42S01]: Base table or view already exists: 1050 Table 'migrations' already exists")
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Accounting\AccountingFoundationTest…  QueryException   
+  SQLSTATE[08004] [1040] Too many connections (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: binaa2_testing, SQL: select exists (select 1 from information_schema.tables where table_schema = schema() and table_name = 'migrations' and table_type in ('BASE TABLE', 'SYSTEM VERSIONED')) as `exists`)
+
+  at vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+    834▕             $exceptionType = $this->isUniqueConstraintError($e)
+    835▕                 ? UniqueConstraintViolationException::class
+    836▕                 : QueryException::class;
+    837▕ 
+  ➜ 838▕             throw new $exceptionType(
+    839▕                 $this->getNameWithReadWriteType(),
+    840▕                 $query,
+    841▕                 $this->prepareBindings($bindings),
+    842▕                 $e,
+
+  1   vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+
+  2   vendor\laravel\framework\src\Illuminate\Database\Connectors\Connector.php:66
+      NunoMaduro\Collision\Exceptions\TestException::("SQLSTATE[08004] [1040] Too many connections")
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Accounting\AccountingFoundationTest…  QueryException   
+  SQLSTATE[42S01]: Base table or view already exists: 1050 Table 'migrations' already exists (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: binaa2_testing, SQL: create table `migrations` (`id` int unsigned not null auto_increment primary key, `migration` varchar(255) not null, `batch` int not null) default character set utf8mb4 collate 'utf8mb4_unicode_ci')
+
+  at vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+    834▕             $exceptionType = $this->isUniqueConstraintError($e)
+    835▕                 ? UniqueConstraintViolationException::class
+    836▕                 : QueryException::class;
+    837▕ 
+  ➜ 838▕             throw new $exceptionType(
+    839▕                 $this->getNameWithReadWriteType(),
+    840▕                 $query,
+    841▕                 $this->prepareBindings($bindings),
+    842▕                 $e,
+
+  1   vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+
+  2   vendor\laravel\framework\src\Illuminate\Database\Connection.php:584
+      NunoMaduro\Collision\Exceptions\TestException::("SQLSTATE[42S01]: Base table or view already exists: 1050 Table 'migrations' already exists")
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Accounting\AccountingFoundationTest…  QueryException   
+  SQLSTATE[08004] [1040] Too many connections (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: binaa2_testing, SQL: select exists (select 1 from information_schema.tables where table_schema = schema() and table_name = 'migrations' and table_type in ('BASE TABLE', 'SYSTEM VERSIONED')) as `exists`)
+
+  at vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+    834▕             $exceptionType = $this->isUniqueConstraintError($e)
+    835▕                 ? UniqueConstraintViolationException::class
+    836▕                 : QueryException::class;
+    837▕ 
+  ➜ 838▕             throw new $exceptionType(
+    839▕                 $this->getNameWithReadWriteType(),
+    840▕                 $query,
+    841▕                 $this->prepareBindings($bindings),
+    842▕                 $e,
+
+  1   vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+
+  2   vendor\laravel\framework\src\Illuminate\Database\Connectors\Connector.php:66
+      NunoMaduro\Collision\Exceptions\TestException::("SQLSTATE[08004] [1040] Too many connections")
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Accounting\AccountingFoundationTest…  QueryException   
+  SQLSTATE[08004] [1040] Too many connections (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: binaa2_testing, SQL: select exists (select 1 from information_schema.tables where table_schema = schema() and table_name = 'migrations' and table_type in ('BASE TABLE', 'SYSTEM VERSIONED')) as `exists`)
+
+  at vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+    834▕             $exceptionType = $this->isUniqueConstraintError($e)
+    835▕                 ? UniqueConstraintViolationException::class
+    836▕                 : QueryException::class;
+    837▕ 
+  ➜ 838▕             throw new $exceptionType(
+    839▕                 $this->getNameWithReadWriteType(),
+    840▕                 $query,
+    841▕                 $this->prepareBindings($bindings),
+    842▕                 $e,
+
+  1   vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+
+  2   vendor\laravel\framework\src\Illuminate\Database\Connectors\Connector.php:66
+      NunoMaduro\Collision\Exceptions\TestException::("SQLSTATE[08004] [1040] Too many connections")
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Accounting\AccountingFoundationTest…  QueryException   
+  SQLSTATE[42S01]: Base table or view already exists: 1050 Table 'migrations' already exists (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: binaa2_testing, SQL: create table `migrations` (`id` int unsigned not null auto_increment primary key, `migration` varchar(255) not null, `batch` int not null) default character set utf8mb4 collate 'utf8mb4_unicode_ci')
+
+  at vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+    834▕             $exceptionType = $this->isUniqueConstraintError($e)
+    835▕                 ? UniqueConstraintViolationException::class
+    836▕                 : QueryException::class;
+    837▕ 
+  ➜ 838▕             throw new $exceptionType(
+    839▕                 $this->getNameWithReadWriteType(),
+    840▕                 $query,
+    841▕                 $this->prepareBindings($bindings),
+    842▕                 $e,
+
+  1   vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+
+  2   vendor\laravel\framework\src\Illuminate\Database\Connection.php:584
+      NunoMaduro\Collision\Exceptions\TestException::("SQLSTATE[42S01]: Base table or view already exists: 1050 Table 'migrations' already exists")
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Accounting\AccountingFoundationTest…  QueryException   
+  SQLSTATE[08004] [1040] Too many connections (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: binaa2_testing, SQL: select exists (select 1 from information_schema.tables where table_schema = schema() and table_name = 'migrations' and table_type in ('BASE TABLE', 'SYSTEM VERSIONED')) as `exists`)
+
+  at vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+    834▕             $exceptionType = $this->isUniqueConstraintError($e)
+    835▕                 ? UniqueConstraintViolationException::class
+    836▕                 : QueryException::class;
+    837▕ 
+  ➜ 838▕             throw new $exceptionType(
+    839▕                 $this->getNameWithReadWriteType(),
+    840▕                 $query,
+    841▕                 $this->prepareBindings($bindings),
+    842▕                 $e,
+
+  1   vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+
+  2   vendor\laravel\framework\src\Illuminate\Database\Connectors\Connector.php:66
+      NunoMaduro\Collision\Exceptions\TestException::("SQLSTATE[08004] [1040] Too many connections")
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Accounting\AccountingFoundationTest…  QueryException   
+  SQLSTATE[42S01]: Base table or view already exists: 1050 Table 'migrations' already exists (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: binaa2_testing, SQL: create table `migrations` (`id` int unsigned not null auto_increment primary key, `migration` varchar(255) not null, `batch` int not null) default character set utf8mb4 collate 'utf8mb4_unicode_ci')
+
+  at vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+    834▕             $exceptionType = $this->isUniqueConstraintError($e)
+    835▕                 ? UniqueConstraintViolationException::class
+    836▕                 : QueryException::class;
+    837▕ 
+  ➜ 838▕             throw new $exceptionType(
+    839▕                 $this->getNameWithReadWriteType(),
+    840▕                 $query,
+    841▕                 $this->prepareBindings($bindings),
+    842▕                 $e,
+
+  1   vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+
+  2   vendor\laravel\framework\src\Illuminate\Database\Connection.php:584
+      NunoMaduro\Collision\Exceptions\TestException::("SQLSTATE[42S01]: Base table or view already exists: 1050 Table 'migrations' already exists")
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Accounting\AccountingFoundationTest…  QueryException   
+  SQLSTATE[42S01]: Base table or view already exists: 1050 Table 'migrations' already exists (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: binaa2_testing, SQL: create table `migrations` (`id` int unsigned not null auto_increment primary key, `migration` varchar(255) not null, `batch` int not null) default character set utf8mb4 collate 'utf8mb4_unicode_ci')
+
+  at vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+    834▕             $exceptionType = $this->isUniqueConstraintError($e)
+    835▕                 ? UniqueConstraintViolationException::class
+    836▕                 : QueryException::class;
+    837▕ 
+  ➜ 838▕             throw new $exceptionType(
+    839▕                 $this->getNameWithReadWriteType(),
+    840▕                 $query,
+    841▕                 $this->prepareBindings($bindings),
+    842▕                 $e,
+
+  1   vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+
+  2   vendor\laravel\framework\src\Illuminate\Database\Connection.php:584
+      NunoMaduro\Collision\Exceptions\TestException::("SQLSTATE[42S01]: Base table or view already exists: 1050 Table 'migrations' already exists")
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Accounting\AccountingFoundationTest…  QueryException   
+  SQLSTATE[42S02]: Base table or view not found: 1051 Unknown table 'binaa2_testing.migrations,binaa2_testing.users' (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: binaa2_testing, SQL: drop table `binaa2_testing`.`migrations`, `binaa2_testing`.`users`)
+
+  at vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+    834▕             $exceptionType = $this->isUniqueConstraintError($e)
+    835▕                 ? UniqueConstraintViolationException::class
+    836▕                 : QueryException::class;
+    837▕ 
+  ➜ 838▕             throw new $exceptionType(
+    839▕                 $this->getNameWithReadWriteType(),
+    840▕                 $query,
+    841▕                 $this->prepareBindings($bindings),
+    842▕                 $e,
+
+  1   vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+
+  2   vendor\laravel\framework\src\Illuminate\Database\Connection.php:584
+      NunoMaduro\Collision\Exceptions\TestException::("SQLSTATE[42S02]: Base table or view not found: 1051 Unknown table 'binaa2_testing.migrations,binaa2_testing.users'")
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Accounting\AccountingFoundationTest…  QueryException   
+  SQLSTATE[42S01]: Base table or view already exists: 1050 Table 'migrations' already exists (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: binaa2_testing, SQL: create table `migrations` (`id` int unsigned not null auto_increment primary key, `migration` varchar(255) not null, `batch` int not null) default character set utf8mb4 collate 'utf8mb4_unicode_ci')
+
+  at vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+    834▕             $exceptionType = $this->isUniqueConstraintError($e)
+    835▕                 ? UniqueConstraintViolationException::class
+    836▕                 : QueryException::class;
+    837▕ 
+  ➜ 838▕             throw new $exceptionType(
+    839▕                 $this->getNameWithReadWriteType(),
+    840▕                 $query,
+    841▕                 $this->prepareBindings($bindings),
+    842▕                 $e,
+
+  1   vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+
+  2   vendor\laravel\framework\src\Illuminate\Database\Connection.php:584
+      NunoMaduro\Collision\Exceptions\TestException::("SQLSTATE[42S01]: Base table or view already exists: 1050 Table 'migrations' already exists")
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Accounting\AccountingFoundationTest…  QueryException   
+  SQLSTATE[08004] [1040] Too many connections (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: binaa2_testing, SQL: select exists (select 1 from information_schema.tables where table_schema = schema() and table_name = 'migrations' and table_type in ('BASE TABLE', 'SYSTEM VERSIONED')) as `exists`)
+
+  at vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+    834▕             $exceptionType = $this->isUniqueConstraintError($e)
+    835▕                 ? UniqueConstraintViolationException::class
+    836▕                 : QueryException::class;
+    837▕ 
+  ➜ 838▕             throw new $exceptionType(
+    839▕                 $this->getNameWithReadWriteType(),
+    840▕                 $query,
+    841▕                 $this->prepareBindings($bindings),
+    842▕                 $e,
+
+  1   vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+
+  2   vendor\laravel\framework\src\Illuminate\Database\Connectors\Connector.php:66
+      NunoMaduro\Collision\Exceptions\TestException::("SQLSTATE[08004] [1040] Too many connections")
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Accounting\AccountingFoundationTest…  QueryException   
+  SQLSTATE[08004] [1040] Too many connections (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: binaa2_testing, SQL: select exists (select 1 from information_schema.tables where table_schema = schema() and table_name = 'migrations' and table_type in ('BASE TABLE', 'SYSTEM VERSIONED')) as `exists`)
+
+  at vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+    834▕             $exceptionType = $this->isUniqueConstraintError($e)
+    835▕                 ? UniqueConstraintViolationException::class
+    836▕                 : QueryException::class;
+    837▕ 
+  ➜ 838▕             throw new $exceptionType(
+    839▕                 $this->getNameWithReadWriteType(),
+    840▕                 $query,
+    841▕                 $this->prepareBindings($bindings),
+    842▕                 $e,
+
+  1   vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+
+  2   vendor\laravel\framework\src\Illuminate\Database\Connectors\Connector.php:66
+      NunoMaduro\Collision\Exceptions\TestException::("SQLSTATE[08004] [1040] Too many connections")
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Accounting\AccountingFoundationTest…  QueryException   
+  SQLSTATE[08004] [1040] Too many connections (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: binaa2_testing, SQL: select exists (select 1 from information_schema.tables where table_schema = schema() and table_name = 'migrations' and table_type in ('BASE TABLE', 'SYSTEM VERSIONED')) as `exists`)
+
+  at vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+    834▕             $exceptionType = $this->isUniqueConstraintError($e)
+    835▕                 ? UniqueConstraintViolationException::class
+    836▕                 : QueryException::class;
+    837▕ 
+  ➜ 838▕             throw new $exceptionType(
+    839▕                 $this->getNameWithReadWriteType(),
+    840▕                 $query,
+    841▕                 $this->prepareBindings($bindings),
+    842▕                 $e,
+
+  1   vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+
+  2   vendor\laravel\framework\src\Illuminate\Database\Connectors\Connector.php:66
+      NunoMaduro\Collision\Exceptions\TestException::("SQLSTATE[08004] [1040] Too many connections")
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Accounting\AccountingFoundationTest…  QueryException   
+  SQLSTATE[42S02]: Base table or view not found: 1051 Unknown table 'binaa2_testing.cache,binaa2_testing.cache_locks,binaa2_testing.migrations' (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: binaa2_testing, SQL: drop table `binaa2_testing`.`cache`, `binaa2_testing`.`cache_locks`, `binaa2_testing`.`migrations`)
+
+  at vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+    834▕             $exceptionType = $this->isUniqueConstraintError($e)
+    835▕                 ? UniqueConstraintViolationException::class
+    836▕                 : QueryException::class;
+    837▕ 
+  ➜ 838▕             throw new $exceptionType(
+    839▕                 $this->getNameWithReadWriteType(),
+    840▕                 $query,
+    841▕                 $this->prepareBindings($bindings),
+    842▕                 $e,
+
+  1   vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+
+  2   vendor\laravel\framework\src\Illuminate\Database\Connection.php:584
+      NunoMaduro\Collision\Exceptions\TestException::("SQLSTATE[42S02]: Base table or view not found: 1051 Unknown table 'binaa2_testing.cache,binaa2_testing.cache_locks,binaa2_testing.migrations'")
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Accounting\AccountingFoundationTest…  QueryException   
+  SQLSTATE[42S02]: Base table or view not found: 1146 Table 'binaa2_testing.migrations' doesn't exist (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: binaa2_testing, SQL: select `migration` from `migrations` order by `batch` asc, `migration` asc)
+
+  at vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+    834▕             $exceptionType = $this->isUniqueConstraintError($e)
+    835▕                 ? UniqueConstraintViolationException::class
+    836▕                 : QueryException::class;
+    837▕ 
+  ➜ 838▕             throw new $exceptionType(
+    839▕                 $this->getNameWithReadWriteType(),
+    840▕                 $query,
+    841▕                 $this->prepareBindings($bindings),
+    842▕                 $e,
+
+  1   vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+
+  2   vendor\laravel\framework\src\Illuminate\Database\Connection.php:420
+      NunoMaduro\Collision\Exceptions\TestException::("SQLSTATE[42S02]: Base table or view not found: 1146 Table 'binaa2_testing.migrations' doesn't exist")
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Accounting\AccountingFoundationTest…  QueryException   
+  SQLSTATE[42S02]: Base table or view not found: 1051 Unknown table 'binaa2_testing.migrations' (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: binaa2_testing, SQL: drop table `binaa2_testing`.`migrations`)
+
+  at vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+    834▕             $exceptionType = $this->isUniqueConstraintError($e)
+    835▕                 ? UniqueConstraintViolationException::class
+    836▕                 : QueryException::class;
+    837▕ 
+  ➜ 838▕             throw new $exceptionType(
+    839▕                 $this->getNameWithReadWriteType(),
+    840▕                 $query,
+    841▕                 $this->prepareBindings($bindings),
+    842▕                 $e,
+
+  1   vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+
+  2   vendor\laravel\framework\src\Illuminate\Database\Connection.php:584
+      NunoMaduro\Collision\Exceptions\TestException::("SQLSTATE[42S02]: Base table or view not found: 1051 Unknown table 'binaa2_testing.migrations'")
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Accounting\AccountingFoundationTest…  QueryException   
+  SQLSTATE[42S02]: Base table or view not found: 1051 Unknown table 'binaa2_testing.cache,binaa2_testing.cache_locks,binaa2_testing.jobs,binaa2_testing.migrations' (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: binaa2_testing, SQL: drop table `binaa2_testing`.`cache`, `binaa2_testing`.`cache_locks`, `binaa2_testing`.`jobs`, `binaa2_testing`.`migrations`)
+
+  at vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+    834▕             $exceptionType = $this->isUniqueConstraintError($e)
+    835▕                 ? UniqueConstraintViolationException::class
+    836▕                 : QueryException::class;
+    837▕ 
+  ➜ 838▕             throw new $exceptionType(
+    839▕                 $this->getNameWithReadWriteType(),
+    840▕                 $query,
+    841▕                 $this->prepareBindings($bindings),
+    842▕                 $e,
+
+  1   vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+
+  2   vendor\laravel\framework\src\Illuminate\Database\Connection.php:584
+      NunoMaduro\Collision\Exceptions\TestException::("SQLSTATE[42S02]: Base table or view not found: 1051 Unknown table 'binaa2_testing.cache,binaa2_testing.cache_locks,binaa2_testing.jobs,binaa2_testing.migrations'")
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Accounting\AccountingFoundationTest…  QueryException   
+  SQLSTATE[08004] [1040] Too many connections (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: binaa2_testing, SQL: select exists (select 1 from information_schema.tables where table_schema = schema() and table_name = 'migrations' and table_type in ('BASE TABLE', 'SYSTEM VERSIONED')) as `exists`)
+
+  at vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+    834▕             $exceptionType = $this->isUniqueConstraintError($e)
+    835▕                 ? UniqueConstraintViolationException::class
+    836▕                 : QueryException::class;
+    837▕ 
+  ➜ 838▕             throw new $exceptionType(
+    839▕                 $this->getNameWithReadWriteType(),
+    840▕                 $query,
+    841▕                 $this->prepareBindings($bindings),
+    842▕                 $e,
+
+  1   vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+
+  2   vendor\laravel\framework\src\Illuminate\Database\Connectors\Connector.php:66
+      NunoMaduro\Collision\Exceptions\TestException::("SQLSTATE[08004] [1040] Too many connections")
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Accounting\AccountingFoundationTest…  QueryException   
+  SQLSTATE[42S02]: Base table or view not found: 1051 Unknown table 'binaa2_testing.failed_jobs,binaa2_testing.job_batches,binaa2_testing.jobs,binaa2_testing.migrations,binaa2_testing.tenants' (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: binaa2_testing, SQL: drop table `binaa2_testing`.`failed_jobs`, `binaa2_testing`.`job_batches`, `binaa2_testing`.`jobs`, `binaa2_testing`.`migrations`, `binaa2_testing`.`tenants`)
+
+  at vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+    834▕             $exceptionType = $this->isUniqueConstraintError($e)
+    835▕                 ? UniqueConstraintViolationException::class
+    836▕                 : QueryException::class;
+    837▕ 
+  ➜ 838▕             throw new $exceptionType(
+    839▕                 $this->getNameWithReadWriteType(),
+    840▕                 $query,
+    841▕                 $this->prepareBindings($bindings),
+    842▕                 $e,
+
+  1   vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+
+  2   vendor\laravel\framework\src\Illuminate\Database\Connection.php:584
+      NunoMaduro\Collision\Exceptions\TestException::("SQLSTATE[42S02]: Base table or view not found: 1051 Unknown table 'binaa2_testing.failed_jobs,binaa2_testing.job_batches,binaa2_testing.jobs,binaa2_testing.migrations,binaa2_testing.tenants'")
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Accounting\AccountingFoundationTest…  QueryException   
+  SQLSTATE[42S01]: Base table or view already exists: 1050 Table 'migrations' already exists (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: binaa2_testing, SQL: create table `migrations` (`id` int unsigned not null auto_increment primary key, `migration` varchar(255) not null, `batch` int not null) default character set utf8mb4 collate 'utf8mb4_unicode_ci')
+
+  at vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+    834▕             $exceptionType = $this->isUniqueConstraintError($e)
+    835▕                 ? UniqueConstraintViolationException::class
+    836▕                 : QueryException::class;
+    837▕ 
+  ➜ 838▕             throw new $exceptionType(
+    839▕                 $this->getNameWithReadWriteType(),
+    840▕                 $query,
+    841▕                 $this->prepareBindings($bindings),
+    842▕                 $e,
+
+  1   vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+
+  2   vendor\laravel\framework\src\Illuminate\Database\Connection.php:584
+      NunoMaduro\Collision\Exceptions\TestException::("SQLSTATE[42S01]: Base table or view already exists: 1050 Table 'migrations' already exists")
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Accounting\AccountingFoundationTest…  QueryException   
+  SQLSTATE[42S02]: Base table or view not found: 1146 Table 'binaa2_testing.migrations' doesn't exist (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: binaa2_testing, SQL: select max(`batch`) as aggregate from `migrations`)
+
+  at vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+    834▕             $exceptionType = $this->isUniqueConstraintError($e)
+    835▕                 ? UniqueConstraintViolationException::class
+    836▕                 : QueryException::class;
+    837▕ 
+  ➜ 838▕             throw new $exceptionType(
+    839▕                 $this->getNameWithReadWriteType(),
+    840▕                 $query,
+    841▕                 $this->prepareBindings($bindings),
+    842▕                 $e,
+
+  1   vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+
+  2   vendor\laravel\framework\src\Illuminate\Database\Connection.php:420
+      NunoMaduro\Collision\Exceptions\TestException::("SQLSTATE[42S02]: Base table or view not found: 1146 Table 'binaa2_testing.migrations' doesn't exist")
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Accounting\AccountingHttpApiTest >…   QueryException   
+  SQLSTATE[42S02]: Base table or view not found: 1051 Unknown table 'binaa2_testing.failed_jobs,binaa2_testing.job_batches,binaa2_testing.migrations,binaa2_testing.tenants,binaa2_testing.users' (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: binaa2_testing, SQL: drop table `binaa2_testing`.`failed_jobs`, `binaa2_testing`.`job_batches`, `binaa2_testing`.`migrations`, `binaa2_testing`.`tenants`, `binaa2_testing`.`users`)
+
+  at vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+    834▕             $exceptionType = $this->isUniqueConstraintError($e)
+    835▕                 ? UniqueConstraintViolationException::class
+    836▕                 : QueryException::class;
+    837▕ 
+  ➜ 838▕             throw new $exceptionType(
+    839▕                 $this->getNameWithReadWriteType(),
+    840▕                 $query,
+    841▕                 $this->prepareBindings($bindings),
+    842▕                 $e,
+
+  1   vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+
+  2   vendor\laravel\framework\src\Illuminate\Database\Connection.php:584
+      NunoMaduro\Collision\Exceptions\TestException::("SQLSTATE[42S02]: Base table or view not found: 1051 Unknown table 'binaa2_testing.failed_jobs,binaa2_testing.job_batches,binaa2_testing.migrations,binaa2_testing.tenants,binaa2_testing.users'")
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Accounting\AccountingHttpApiTest >…   QueryException   
+  SQLSTATE[08004] [1040] Too many connections (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: binaa2_testing, SQL: select exists (select 1 from information_schema.tables where table_schema = schema() and table_name = 'migrations' and table_type in ('BASE TABLE', 'SYSTEM VERSIONED')) as `exists`)
+
+  at vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+    834▕             $exceptionType = $this->isUniqueConstraintError($e)
+    835▕                 ? UniqueConstraintViolationException::class
+    836▕                 : QueryException::class;
+    837▕ 
+  ➜ 838▕             throw new $exceptionType(
+    839▕                 $this->getNameWithReadWriteType(),
+    840▕                 $query,
+    841▕                 $this->prepareBindings($bindings),
+    842▕                 $e,
+
+  1   vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+
+  2   vendor\laravel\framework\src\Illuminate\Database\Connectors\Connector.php:66
+      NunoMaduro\Collision\Exceptions\TestException::("SQLSTATE[08004] [1040] Too many connections")
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Accounting\AccountingHttpApiTest >…   QueryException   
+  SQLSTATE[08004] [1040] Too many connections (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: binaa2_testing, SQL: select exists (select 1 from information_schema.tables where table_schema = schema() and table_name = 'migrations' and table_type in ('BASE TABLE', 'SYSTEM VERSIONED')) as `exists`)
+
+  at vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+    834▕             $exceptionType = $this->isUniqueConstraintError($e)
+    835▕                 ? UniqueConstraintViolationException::class
+    836▕                 : QueryException::class;
+    837▕ 
+  ➜ 838▕             throw new $exceptionType(
+    839▕                 $this->getNameWithReadWriteType(),
+    840▕                 $query,
+    841▕                 $this->prepareBindings($bindings),
+    842▕                 $e,
+
+  1   vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+
+  2   vendor\laravel\framework\src\Illuminate\Database\Connectors\Connector.php:66
+      NunoMaduro\Collision\Exceptions\TestException::("SQLSTATE[08004] [1040] Too many connections")
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Accounting\AccountingHttpApiTest >…   QueryException   
+  SQLSTATE[42S01]: Base table or view already exists: 1050 Table 'migrations' already exists (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: binaa2_testing, SQL: create table `migrations` (`id` int unsigned not null auto_increment primary key, `migration` varchar(255) not null, `batch` int not null) default character set utf8mb4 collate 'utf8mb4_unicode_ci')
+
+  at vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+    834▕             $exceptionType = $this->isUniqueConstraintError($e)
+    835▕                 ? UniqueConstraintViolationException::class
+    836▕                 : QueryException::class;
+    837▕ 
+  ➜ 838▕             throw new $exceptionType(
+    839▕                 $this->getNameWithReadWriteType(),
+    840▕                 $query,
+    841▕                 $this->prepareBindings($bindings),
+    842▕                 $e,
+
+  1   vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+
+  2   vendor\laravel\framework\src\Illuminate\Database\Connection.php:584
+      NunoMaduro\Collision\Exceptions\TestException::("SQLSTATE[42S01]: Base table or view already exists: 1050 Table 'migrations' already exists")
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Accounting\AccountingHttpApiTest >…   QueryException   
+  SQLSTATE[42S02]: Base table or view not found: 1051 Unknown table 'binaa2_testing.cache,binaa2_testing.cache_locks,binaa2_testing.migrations' (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: binaa2_testing, SQL: drop table `binaa2_testing`.`cache`, `binaa2_testing`.`cache_locks`, `binaa2_testing`.`migrations`)
+
+  at vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+    834▕             $exceptionType = $this->isUniqueConstraintError($e)
+    835▕                 ? UniqueConstraintViolationException::class
+    836▕                 : QueryException::class;
+    837▕ 
+  ➜ 838▕             throw new $exceptionType(
+    839▕                 $this->getNameWithReadWriteType(),
+    840▕                 $query,
+    841▕                 $this->prepareBindings($bindings),
+    842▕                 $e,
+
+  1   vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+
+  2   vendor\laravel\framework\src\Illuminate\Database\Connection.php:584
+      NunoMaduro\Collision\Exceptions\TestException::("SQLSTATE[42S02]: Base table or view not found: 1051 Unknown table 'binaa2_testing.cache,binaa2_testing.cache_locks,binaa2_testing.migrations'")
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Accounting\AccountingHttpApiTest >…   QueryException   
+  SQLSTATE[08004] [1040] Too many connections (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: binaa2_testing, SQL: select exists (select 1 from information_schema.tables where table_schema = schema() and table_name = 'migrations' and table_type in ('BASE TABLE', 'SYSTEM VERSIONED')) as `exists`)
+
+  at vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+    834▕             $exceptionType = $this->isUniqueConstraintError($e)
+    835▕                 ? UniqueConstraintViolationException::class
+    836▕                 : QueryException::class;
+    837▕ 
+  ➜ 838▕             throw new $exceptionType(
+    839▕                 $this->getNameWithReadWriteType(),
+    840▕                 $query,
+    841▕                 $this->prepareBindings($bindings),
+    842▕                 $e,
+
+  1   vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+
+  2   vendor\laravel\framework\src\Illuminate\Database\Connectors\Connector.php:66
+      NunoMaduro\Collision\Exceptions\TestException::("SQLSTATE[08004] [1040] Too many connections")
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Accounting\AccountingHttpApiTest >…   QueryException   
+  SQLSTATE[42S02]: Base table or view not found: 1051 Unknown table 'binaa2_testing.migrations' (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: binaa2_testing, SQL: drop table `binaa2_testing`.`migrations`)
+
+  at vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+    834▕             $exceptionType = $this->isUniqueConstraintError($e)
+    835▕                 ? UniqueConstraintViolationException::class
+    836▕                 : QueryException::class;
+    837▕ 
+  ➜ 838▕             throw new $exceptionType(
+    839▕                 $this->getNameWithReadWriteType(),
+    840▕                 $query,
+    841▕                 $this->prepareBindings($bindings),
+    842▕                 $e,
+
+  1   vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+
+  2   vendor\laravel\framework\src\Illuminate\Database\Connection.php:584
+      NunoMaduro\Collision\Exceptions\TestException::("SQLSTATE[42S02]: Base table or view not found: 1051 Unknown table 'binaa2_testing.migrations'")
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Accounting\AccountingHttpApiTest >…   QueryException   
+  SQLSTATE[08004] [1040] Too many connections (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: binaa2_testing, SQL: select exists (select 1 from information_schema.tables where table_schema = schema() and table_name = 'migrations' and table_type in ('BASE TABLE', 'SYSTEM VERSIONED')) as `exists`)
+
+  at vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+    834▕             $exceptionType = $this->isUniqueConstraintError($e)
+    835▕                 ? UniqueConstraintViolationException::class
+    836▕                 : QueryException::class;
+    837▕ 
+  ➜ 838▕             throw new $exceptionType(
+    839▕                 $this->getNameWithReadWriteType(),
+    840▕                 $query,
+    841▕                 $this->prepareBindings($bindings),
+    842▕                 $e,
+
+  1   vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+
+  2   vendor\laravel\framework\src\Illuminate\Database\Connectors\Connector.php:66
+      NunoMaduro\Collision\Exceptions\TestException::("SQLSTATE[08004] [1040] Too many connections")
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Accounting\AccountingHttpApiTest >…   QueryException   
+  SQLSTATE[42S01]: Base table or view already exists: 1050 Table 'migrations' already exists (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: binaa2_testing, SQL: create table `migrations` (`id` int unsigned not null auto_increment primary key, `migration` varchar(255) not null, `batch` int not null) default character set utf8mb4 collate 'utf8mb4_unicode_ci')
+
+  at vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+    834▕             $exceptionType = $this->isUniqueConstraintError($e)
+    835▕                 ? UniqueConstraintViolationException::class
+    836▕                 : QueryException::class;
+    837▕ 
+  ➜ 838▕             throw new $exceptionType(
+    839▕                 $this->getNameWithReadWriteType(),
+    840▕                 $query,
+    841▕                 $this->prepareBindings($bindings),
+    842▕                 $e,
+
+  1   vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+
+  2   vendor\laravel\framework\src\Illuminate\Database\Connection.php:584
+      NunoMaduro\Collision\Exceptions\TestException::("SQLSTATE[42S01]: Base table or view already exists: 1050 Table 'migrations' already exists")
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Accounting\AccountingHttpApiTest >…   QueryException   
+  SQLSTATE[08004] [1040] Too many connections (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: binaa2_testing, SQL: select exists (select 1 from information_schema.tables where table_schema = schema() and table_name = 'migrations' and table_type in ('BASE TABLE', 'SYSTEM VERSIONED')) as `exists`)
+
+  at vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+    834▕             $exceptionType = $this->isUniqueConstraintError($e)
+    835▕                 ? UniqueConstraintViolationException::class
+    836▕                 : QueryException::class;
+    837▕ 
+  ➜ 838▕             throw new $exceptionType(
+    839▕                 $this->getNameWithReadWriteType(),
+    840▕                 $query,
+    841▕                 $this->prepareBindings($bindings),
+    842▕                 $e,
+
+  1   vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+
+  2   vendor\laravel\framework\src\Illuminate\Database\Connectors\Connector.php:66
+      NunoMaduro\Collision\Exceptions\TestException::("SQLSTATE[08004] [1040] Too many connections")
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Accounting\AccountingHttpApiTest >…   QueryException   
+  SQLSTATE[08004] [1040] Too many connections (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: binaa2_testing, SQL: select exists (select 1 from information_schema.tables where table_schema = schema() and table_name = 'migrations' and table_type in ('BASE TABLE', 'SYSTEM VERSIONED')) as `exists`)
+
+  at vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+    834▕             $exceptionType = $this->isUniqueConstraintError($e)
+    835▕                 ? UniqueConstraintViolationException::class
+    836▕                 : QueryException::class;
+    837▕ 
+  ➜ 838▕             throw new $exceptionType(
+    839▕                 $this->getNameWithReadWriteType(),
+    840▕                 $query,
+    841▕                 $this->prepareBindings($bindings),
+    842▕                 $e,
+
+  1   vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+
+  2   vendor\laravel\framework\src\Illuminate\Database\Connectors\Connector.php:66
+      NunoMaduro\Collision\Exceptions\TestException::("SQLSTATE[08004] [1040] Too many connections")
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Accounting\AccountingHttpApiTest >…   QueryException   
+  SQLSTATE[08004] [1040] Too many connections (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: binaa2_testing, SQL: select exists (select 1 from information_schema.tables where table_schema = schema() and table_name = 'migrations' and table_type in ('BASE TABLE', 'SYSTEM VERSIONED')) as `exists`)
+
+  at vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+    834▕             $exceptionType = $this->isUniqueConstraintError($e)
+    835▕                 ? UniqueConstraintViolationException::class
+    836▕                 : QueryException::class;
+    837▕ 
+  ➜ 838▕             throw new $exceptionType(
+    839▕                 $this->getNameWithReadWriteType(),
+    840▕                 $query,
+    841▕                 $this->prepareBindings($bindings),
+    842▕                 $e,
+
+  1   vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+
+  2   vendor\laravel\framework\src\Illuminate\Database\Connectors\Connector.php:66
+      NunoMaduro\Collision\Exceptions\TestException::("SQLSTATE[08004] [1040] Too many connections")
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Accounting\AccountingHttpApiTest >…   QueryException   
+  SQLSTATE[42S01]: Base table or view already exists: 1050 Table 'migrations' already exists (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: binaa2_testing, SQL: create table `migrations` (`id` int unsigned not null auto_increment primary key, `migration` varchar(255) not null, `batch` int not null) default character set utf8mb4 collate 'utf8mb4_unicode_ci')
+
+  at vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+    834▕             $exceptionType = $this->isUniqueConstraintError($e)
+    835▕                 ? UniqueConstraintViolationException::class
+    836▕                 : QueryException::class;
+    837▕ 
+  ➜ 838▕             throw new $exceptionType(
+    839▕                 $this->getNameWithReadWriteType(),
+    840▕                 $query,
+    841▕                 $this->prepareBindings($bindings),
+    842▕                 $e,
+
+  1   vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+
+  2   vendor\laravel\framework\src\Illuminate\Database\Connection.php:584
+      NunoMaduro\Collision\Exceptions\TestException::("SQLSTATE[42S01]: Base table or view already exists: 1050 Table 'migrations' already exists")
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Accounting\AccountingServiceTest >…   QueryException   
+  SQLSTATE[42S02]: Base table or view not found: 1146 Table 'binaa2_testing.migrations' doesn't exist (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: binaa2_testing, SQL: select `migration` from `migrations` order by `batch` asc, `migration` asc)
+
+  at vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+    834▕             $exceptionType = $this->isUniqueConstraintError($e)
+    835▕                 ? UniqueConstraintViolationException::class
+    836▕                 : QueryException::class;
+    837▕ 
+  ➜ 838▕             throw new $exceptionType(
+    839▕                 $this->getNameWithReadWriteType(),
+    840▕                 $query,
+    841▕                 $this->prepareBindings($bindings),
+    842▕                 $e,
+
+  1   vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+
+  2   vendor\laravel\framework\src\Illuminate\Database\Connection.php:420
+      NunoMaduro\Collision\Exceptions\TestException::("SQLSTATE[42S02]: Base table or view not found: 1146 Table 'binaa2_testing.migrations' doesn't exist")
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Accounting\AccountingServiceTest >…   QueryException   
+  SQLSTATE[42S02]: Base table or view not found: 1051 Unknown table 'binaa2_testing.migrations' (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: binaa2_testing, SQL: drop table `binaa2_testing`.`migrations`)
+
+  at vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+    834▕             $exceptionType = $this->isUniqueConstraintError($e)
+    835▕                 ? UniqueConstraintViolationException::class
+    836▕                 : QueryException::class;
+    837▕ 
+  ➜ 838▕             throw new $exceptionType(
+    839▕                 $this->getNameWithReadWriteType(),
+    840▕                 $query,
+    841▕                 $this->prepareBindings($bindings),
+    842▕                 $e,
+
+  1   vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+
+  2   vendor\laravel\framework\src\Illuminate\Database\Connection.php:584
+      NunoMaduro\Collision\Exceptions\TestException::("SQLSTATE[42S02]: Base table or view not found: 1051 Unknown table 'binaa2_testing.migrations'")
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Accounting\AccountingServiceTest >…   QueryException   
+  SQLSTATE[42S01]: Base table or view already exists: 1050 Table 'migrations' already exists (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: binaa2_testing, SQL: create table `migrations` (`id` int unsigned not null auto_increment primary key, `migration` varchar(255) not null, `batch` int not null) default character set utf8mb4 collate 'utf8mb4_unicode_ci')
+
+  at vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+    834▕             $exceptionType = $this->isUniqueConstraintError($e)
+    835▕                 ? UniqueConstraintViolationException::class
+    836▕                 : QueryException::class;
+    837▕ 
+  ➜ 838▕             throw new $exceptionType(
+    839▕                 $this->getNameWithReadWriteType(),
+    840▕                 $query,
+    841▕                 $this->prepareBindings($bindings),
+    842▕                 $e,
+
+  1   vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+
+  2   vendor\laravel\framework\src\Illuminate\Database\Connection.php:584
+      NunoMaduro\Collision\Exceptions\TestException::("SQLSTATE[42S01]: Base table or view already exists: 1050 Table 'migrations' already exists")
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Accounting\AccountingServiceTest >…   QueryException   
+  SQLSTATE[08004] [1040] Too many connections (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: binaa2_testing, SQL: select exists (select 1 from information_schema.tables where table_schema = schema() and table_name = 'migrations' and table_type in ('BASE TABLE', 'SYSTEM VERSIONED')) as `exists`)
+
+  at vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+    834▕             $exceptionType = $this->isUniqueConstraintError($e)
+    835▕                 ? UniqueConstraintViolationException::class
+    836▕                 : QueryException::class;
+    837▕ 
+  ➜ 838▕             throw new $exceptionType(
+    839▕                 $this->getNameWithReadWriteType(),
+    840▕                 $query,
+    841▕                 $this->prepareBindings($bindings),
+    842▕                 $e,
+
+  1   vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+
+  2   vendor\laravel\framework\src\Illuminate\Database\Connectors\Connector.php:66
+      NunoMaduro\Collision\Exceptions\TestException::("SQLSTATE[08004] [1040] Too many connections")
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Accounting\AccountingServiceTest >…   QueryException   
+  SQLSTATE[42S01]: Base table or view already exists: 1050 Table 'migrations' already exists (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: binaa2_testing, SQL: create table `migrations` (`id` int unsigned not null auto_increment primary key, `migration` varchar(255) not null, `batch` int not null) default character set utf8mb4 collate 'utf8mb4_unicode_ci')
+
+  at vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+    834▕             $exceptionType = $this->isUniqueConstraintError($e)
+    835▕                 ? UniqueConstraintViolationException::class
+    836▕                 : QueryException::class;
+    837▕ 
+  ➜ 838▕             throw new $exceptionType(
+    839▕                 $this->getNameWithReadWriteType(),
+    840▕                 $query,
+    841▕                 $this->prepareBindings($bindings),
+    842▕                 $e,
+
+  1   vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+
+  2   vendor\laravel\framework\src\Illuminate\Database\Connection.php:584
+      NunoMaduro\Collision\Exceptions\TestException::("SQLSTATE[42S01]: Base table or view already exists: 1050 Table 'migrations' already exists")
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Accounting\AccountingServiceTest >…   QueryException   
+  SQLSTATE[08004] [1040] Too many connections (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: binaa2_testing, SQL: select exists (select 1 from information_schema.tables where table_schema = schema() and table_name = 'migrations' and table_type in ('BASE TABLE', 'SYSTEM VERSIONED')) as `exists`)
+
+  at vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+    834▕             $exceptionType = $this->isUniqueConstraintError($e)
+    835▕                 ? UniqueConstraintViolationException::class
+    836▕                 : QueryException::class;
+    837▕ 
+  ➜ 838▕             throw new $exceptionType(
+    839▕                 $this->getNameWithReadWriteType(),
+    840▕                 $query,
+    841▕                 $this->prepareBindings($bindings),
+    842▕                 $e,
+
+  1   vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+
+  2   vendor\laravel\framework\src\Illuminate\Database\Connectors\Connector.php:66
+      NunoMaduro\Collision\Exceptions\TestException::("SQLSTATE[08004] [1040] Too many connections")
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Accounting\AccountingServiceTest >…   QueryException   
+  SQLSTATE[42S02]: Base table or view not found: 1051 Unknown table 'binaa2_testing.cache,binaa2_testing.cache_locks,binaa2_testing.failed_jobs,binaa2_testing.job_batches,binaa2_testing.jobs,binaa2_' (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: binaa2_testing, SQL: drop table `binaa2_testing`.`cache`, `binaa2_testing`.`cache_locks`, `binaa2_testing`.`failed_jobs`, `binaa2_testing`.`job_batches`, `binaa2_testing`.`jobs`, `binaa2_testing`.`migrations`, `binaa2_testing`.`users`)
+
+  at vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+    834▕             $exceptionType = $this->isUniqueConstraintError($e)
+    835▕                 ? UniqueConstraintViolationException::class
+    836▕                 : QueryException::class;
+    837▕ 
+  ➜ 838▕             throw new $exceptionType(
+    839▕                 $this->getNameWithReadWriteType(),
+    840▕                 $query,
+    841▕                 $this->prepareBindings($bindings),
+    842▕                 $e,
+
+  1   vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+
+  2   vendor\laravel\framework\src\Illuminate\Database\Connection.php:584
+      NunoMaduro\Collision\Exceptions\TestException::("SQLSTATE[42S02]: Base table or view not found: 1051 Unknown table 'binaa2_testing.cache,binaa2_testing.cache_locks,binaa2_testing.failed_jobs,binaa2_testing.job_batches,binaa2_testing.jobs,binaa2_'")
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Accounting\AccountingServiceTest >…   QueryException   
+  SQLSTATE[42S02]: Base table or view not found: 1146 Table 'binaa2_testing.migrations' doesn't exist (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: binaa2_testing, SQL: select `migration` from `migrations` order by `batch` asc, `migration` asc)
+
+  at vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+    834▕             $exceptionType = $this->isUniqueConstraintError($e)
+    835▕                 ? UniqueConstraintViolationException::class
+    836▕                 : QueryException::class;
+    837▕ 
+  ➜ 838▕             throw new $exceptionType(
+    839▕                 $this->getNameWithReadWriteType(),
+    840▕                 $query,
+    841▕                 $this->prepareBindings($bindings),
+    842▕                 $e,
+
+  1   vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+
+  2   vendor\laravel\framework\src\Illuminate\Database\Connection.php:420
+      NunoMaduro\Collision\Exceptions\TestException::("SQLSTATE[42S02]: Base table or view not found: 1146 Table 'binaa2_testing.migrations' doesn't exist")
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Accounting\AccountingServiceTest >…   QueryException   
+  SQLSTATE[08004] [1040] Too many connections (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: binaa2_testing, SQL: select exists (select 1 from information_schema.tables where table_schema = schema() and table_name = 'migrations' and table_type in ('BASE TABLE', 'SYSTEM VERSIONED')) as `exists`)
+
+  at vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+    834▕             $exceptionType = $this->isUniqueConstraintError($e)
+    835▕                 ? UniqueConstraintViolationException::class
+    836▕                 : QueryException::class;
+    837▕ 
+  ➜ 838▕             throw new $exceptionType(
+    839▕                 $this->getNameWithReadWriteType(),
+    840▕                 $query,
+    841▕                 $this->prepareBindings($bindings),
+    842▕                 $e,
+
+  1   vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+
+  2   vendor\laravel\framework\src\Illuminate\Database\Connectors\Connector.php:66
+      NunoMaduro\Collision\Exceptions\TestException::("SQLSTATE[08004] [1040] Too many connections")
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Accounting\AccountingServiceTest >…   QueryException   
+  SQLSTATE[42S02]: Base table or view not found: 1051 Unknown table 'binaa2_testing.failed_jobs,binaa2_testing.users' (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: binaa2_testing, SQL: drop table `binaa2_testing`.`failed_jobs`, `binaa2_testing`.`migrations`, `binaa2_testing`.`users`)
+
+  at vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+    834▕             $exceptionType = $this->isUniqueConstraintError($e)
+    835▕                 ? UniqueConstraintViolationException::class
+    836▕                 : QueryException::class;
+    837▕ 
+  ➜ 838▕             throw new $exceptionType(
+    839▕                 $this->getNameWithReadWriteType(),
+    840▕                 $query,
+    841▕                 $this->prepareBindings($bindings),
+    842▕                 $e,
+
+  1   vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+
+  2   vendor\laravel\framework\src\Illuminate\Database\Connection.php:584
+      NunoMaduro\Collision\Exceptions\TestException::("SQLSTATE[42S02]: Base table or view not found: 1051 Unknown table 'binaa2_testing.failed_jobs,binaa2_testing.users'")
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Accounting\AccountingServiceTest >…   QueryException   
+  SQLSTATE[42S02]: Base table or view not found: 1051 Unknown table 'binaa2_testing.cache,binaa2_testing.cache_locks,binaa2_testing.failed_jobs,binaa2_testing.job_batches,binaa2_testing.jobs,binaa2_' (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: binaa2_testing, SQL: drop table `binaa2_testing`.`cache`, `binaa2_testing`.`cache_locks`, `binaa2_testing`.`failed_jobs`, `binaa2_testing`.`job_batches`, `binaa2_testing`.`jobs`, `binaa2_testing`.`migrations`, `binaa2_testing`.`tenant_settings`, `binaa2_testing`.`tenants`)
+
+  at vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+    834▕             $exceptionType = $this->isUniqueConstraintError($e)
+    835▕                 ? UniqueConstraintViolationException::class
+    836▕                 : QueryException::class;
+    837▕ 
+  ➜ 838▕             throw new $exceptionType(
+    839▕                 $this->getNameWithReadWriteType(),
+    840▕                 $query,
+    841▕                 $this->prepareBindings($bindings),
+    842▕                 $e,
+
+  1   vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+
+  2   vendor\laravel\framework\src\Illuminate\Database\Connection.php:584
+      NunoMaduro\Collision\Exceptions\TestException::("SQLSTATE[42S02]: Base table or view not found: 1051 Unknown table 'binaa2_testing.cache,binaa2_testing.cache_locks,binaa2_testing.failed_jobs,binaa2_testing.job_batches,binaa2_testing.jobs,binaa2_'")
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Accounting\AccountingServiceTest >…   QueryException   
+  SQLSTATE[42S01]: Base table or view already exists: 1050 Table 'migrations' already exists (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: binaa2_testing, SQL: create table `migrations` (`id` int unsigned not null auto_increment primary key, `migration` varchar(255) not null, `batch` int not null) default character set utf8mb4 collate 'utf8mb4_unicode_ci')
+
+  at vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+    834▕             $exceptionType = $this->isUniqueConstraintError($e)
+    835▕                 ? UniqueConstraintViolationException::class
+    836▕                 : QueryException::class;
+    837▕ 
+  ➜ 838▕             throw new $exceptionType(
+    839▕                 $this->getNameWithReadWriteType(),
+    840▕                 $query,
+    841▕                 $this->prepareBindings($bindings),
+    842▕                 $e,
+
+  1   vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+
+  2   vendor\laravel\framework\src\Illuminate\Database\Connection.php:584
+      NunoMaduro\Collision\Exceptions\TestException::("SQLSTATE[42S01]: Base table or view already exists: 1050 Table 'migrations' already exists")
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Accounting\AccountingServiceTest >…   QueryException   
+  SQLSTATE[42S01]: Base table or view already exists: 1050 Table 'migrations' already exists (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: binaa2_testing, SQL: create table `migrations` (`id` int unsigned not null auto_increment primary key, `migration` varchar(255) not null, `batch` int not null) default character set utf8mb4 collate 'utf8mb4_unicode_ci')
+
+  at vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+    834▕             $exceptionType = $this->isUniqueConstraintError($e)
+    835▕                 ? UniqueConstraintViolationException::class
+    836▕                 : QueryException::class;
+    837▕ 
+  ➜ 838▕             throw new $exceptionType(
+    839▕                 $this->getNameWithReadWriteType(),
+    840▕                 $query,
+    841▕                 $this->prepareBindings($bindings),
+    842▕                 $e,
+
+  1   vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+
+  2   vendor\laravel\framework\src\Illuminate\Database\Connection.php:584
+      NunoMaduro\Collision\Exceptions\TestException::("SQLSTATE[42S01]: Base table or view already exists: 1050 Table 'migrations' already exists")
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Accounting\AccountingServiceTest >…   QueryException   
+  SQLSTATE[42S02]: Base table or view not found: 1051 Unknown table 'binaa2_testing.migrations,binaa2_testing.users' (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: binaa2_testing, SQL: drop table `binaa2_testing`.`migrations`, `binaa2_testing`.`users`)
+
+  at vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+    834▕             $exceptionType = $this->isUniqueConstraintError($e)
+    835▕                 ? UniqueConstraintViolationException::class
+    836▕                 : QueryException::class;
+    837▕ 
+  ➜ 838▕             throw new $exceptionType(
+    839▕                 $this->getNameWithReadWriteType(),
+    840▕                 $query,
+    841▕                 $this->prepareBindings($bindings),
+    842▕                 $e,
+
+  1   vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+
+  2   vendor\laravel\framework\src\Illuminate\Database\Connection.php:584
+      NunoMaduro\Collision\Exceptions\TestException::("SQLSTATE[42S02]: Base table or view not found: 1051 Unknown table 'binaa2_testing.migrations,binaa2_testing.users'")
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Accounting\AccountingServiceTest >…   QueryException   
+  SQLSTATE[42S02]: Base table or view not found: 1051 Unknown table 'binaa2_testing.cache,binaa2_testing.cache_locks' (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: binaa2_testing, SQL: drop table `binaa2_testing`.`cache`, `binaa2_testing`.`cache_locks`, `binaa2_testing`.`migrations`)
+
+  at vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+    834▕             $exceptionType = $this->isUniqueConstraintError($e)
+    835▕                 ? UniqueConstraintViolationException::class
+    836▕                 : QueryException::class;
+    837▕ 
+  ➜ 838▕             throw new $exceptionType(
+    839▕                 $this->getNameWithReadWriteType(),
+    840▕                 $query,
+    841▕                 $this->prepareBindings($bindings),
+    842▕                 $e,
+
+  1   vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+
+  2   vendor\laravel\framework\src\Illuminate\Database\Connection.php:584
+      NunoMaduro\Collision\Exceptions\TestException::("SQLSTATE[42S02]: Base table or view not found: 1051 Unknown table 'binaa2_testing.cache,binaa2_testing.cache_locks'")
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Accounting\AccountingServiceTest >…   QueryException   
+  SQLSTATE[42S02]: Base table or view not found: 1051 Unknown table 'binaa2_testing.failed_jobs,binaa2_testing.users' (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: binaa2_testing, SQL: drop table `binaa2_testing`.`failed_jobs`, `binaa2_testing`.`migrations`, `binaa2_testing`.`users`)
+
+  at vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+    834▕             $exceptionType = $this->isUniqueConstraintError($e)
+    835▕                 ? UniqueConstraintViolationException::class
+    836▕                 : QueryException::class;
+    837▕ 
+  ➜ 838▕             throw new $exceptionType(
+    839▕                 $this->getNameWithReadWriteType(),
+    840▕                 $query,
+    841▕                 $this->prepareBindings($bindings),
+    842▕                 $e,
+
+  1   vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+
+  2   vendor\laravel\framework\src\Illuminate\Database\Connection.php:584
+      NunoMaduro\Collision\Exceptions\TestException::("SQLSTATE[42S02]: Base table or view not found: 1051 Unknown table 'binaa2_testing.failed_jobs,binaa2_testing.users'")
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Accounting\AccountingServiceTest >…   QueryException   
+  SQLSTATE[08004] [1040] Too many connections (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: binaa2_testing, SQL: select exists (select 1 from information_schema.tables where table_schema = schema() and table_name = 'migrations' and table_type in ('BASE TABLE', 'SYSTEM VERSIONED')) as `exists`)
+
+  at vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+    834▕             $exceptionType = $this->isUniqueConstraintError($e)
+    835▕                 ? UniqueConstraintViolationException::class
+    836▕                 : QueryException::class;
+    837▕ 
+  ➜ 838▕             throw new $exceptionType(
+    839▕                 $this->getNameWithReadWriteType(),
+    840▕                 $query,
+    841▕                 $this->prepareBindings($bindings),
+    842▕                 $e,
+
+  1   vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+
+  2   vendor\laravel\framework\src\Illuminate\Database\Connectors\Connector.php:66
+      NunoMaduro\Collision\Exceptions\TestException::("SQLSTATE[08004] [1040] Too many connections")
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Accounting\AccountingServiceTest >…   QueryException   
+  SQLSTATE[42S01]: Base table or view already exists: 1050 Table 'migrations' already exists (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: binaa2_testing, SQL: create table `migrations` (`id` int unsigned not null auto_increment primary key, `migration` varchar(255) not null, `batch` int not null) default character set utf8mb4 collate 'utf8mb4_unicode_ci')
+
+  at vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+    834▕             $exceptionType = $this->isUniqueConstraintError($e)
+    835▕                 ? UniqueConstraintViolationException::class
+    836▕                 : QueryException::class;
+    837▕ 
+  ➜ 838▕             throw new $exceptionType(
+    839▕                 $this->getNameWithReadWriteType(),
+    840▕                 $query,
+    841▕                 $this->prepareBindings($bindings),
+    842▕                 $e,
+
+  1   vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+
+  2   vendor\laravel\framework\src\Illuminate\Database\Connection.php:584
+      NunoMaduro\Collision\Exceptions\TestException::("SQLSTATE[42S01]: Base table or view already exists: 1050 Table 'migrations' already exists")
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\Accounting\AccountingServiceTest >…   QueryException   
+  SQLSTATE[42S01]: Base table or view already exists: 1050 Table 'migrations' already exists (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: binaa2_testing, SQL: create table `migrations` (`id` int unsigned not null auto_increment primary key, `migration` varchar(255) not null, `batch` int not null) default character set utf8mb4 collate 'utf8mb4_unicode_ci')
+
+  at vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+    834▕             $exceptionType = $this->isUniqueConstraintError($e)
+    835▕                 ? UniqueConstraintViolationException::class
+    836▕                 : QueryException::class;
+    837▕ 
+  ➜ 838▕             throw new $exceptionType(
+    839▕                 $this->getNameWithReadWriteType(),
+    840▕                 $query,
+    841▕                 $this->prepareBindings($bindings),
+    842▕                 $e,
+
+  1   vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+
+  2   vendor\laravel\framework\src\Illuminate\Database\Connection.php:584
+      NunoMaduro\Collision\Exceptions\TestException::("SQLSTATE[42S01]: Base table or view already exists: 1050 Table 'migrations' already exists")
+
+
+  Tests:    58 failed (0 assertions)
+  Duration: 26965.04s
+
