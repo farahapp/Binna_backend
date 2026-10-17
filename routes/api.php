@@ -61,6 +61,10 @@ Route::middleware(['tenant', 'tenant.schema', 'auth:sanctum'])->group(function (
     Route::post('/auth/logout', [AuthController::class, 'logout'])
         ->name('auth.logout');
 
+    // Current User Identity (B-01 — Mobile /api/auth/me)
+    Route::get('/auth/me', [AuthController::class, 'me'])
+        ->name('auth.me');
+
     // SPA Authentication — Logout (C-002 §26 — Web SPA Cookie Auth)
     // Session-based auth via EnsureFrontendRequestsAreStateful + auth:sanctum
     Route::post('/auth/spa/logout', [AuthController::class, 'spaLogout'])
@@ -217,6 +221,8 @@ Route::middleware(['tenant', 'tenant.schema', 'auth:sanctum'])->group(function (
             ->name('activities.add');
 
         // Daily Report Operations
+        Route::get('/{id}/daily-reports', [ProjectsController::class, 'listDailyReports'])
+            ->name('daily-reports.list');
         Route::post('/{id}/daily-reports', [ProjectsController::class, 'submitDailyReport'])
             ->name('daily-reports.submit');
 
@@ -229,6 +235,12 @@ Route::middleware(['tenant', 'tenant.schema', 'auth:sanctum'])->group(function (
         // Team Operations
         Route::post('/{id}/team', [ProjectsController::class, 'assignTeamMember'])
             ->name('team.assign');
+
+        // Party Operations (CORE-01C-2)
+        Route::get('/{id}/parties', [ProjectsController::class, 'listProjectParties'])
+            ->name('parties.list');
+        Route::put('/{id}/parties', [ProjectsController::class, 'replaceProjectParties'])
+            ->name('parties.replace');
     });
 
     // -------------------------------------------------------------------------

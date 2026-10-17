@@ -540,6 +540,9 @@ class CRMService
             'crm.lead.stage_updated',
             $actorId,
             [
+                'tenant_slug'    => $lead->tenant_slug,
+                'subject_type'   => Lead::class,
+                'subject_id'     => $leadId,
                 'lead_id'        => $leadId,
                 'previous_stage' => $previousStage,
                 'new_stage'      => $stage,
@@ -590,6 +593,9 @@ class CRMService
             'crm.opportunity.stage_updated',
             $actorId,
             [
+                'tenant_slug'    => $opportunity->tenant_slug,
+                'subject_type'   => Opportunity::class,
+                'subject_id'     => $opportunityId,
                 'opportunity_id' => $opportunityId,
                 'previous_stage' => $previousStage,
                 'new_stage'      => $stage,

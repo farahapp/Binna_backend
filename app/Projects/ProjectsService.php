@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace App\Projects;
 
 use App\Audit\AuditService;
+use App\CRM\CRMService;
 use App\Projects\Events\ProjectClosed;
 use App\Projects\Events\ProjectCreated;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use InvalidArgumentException;
 
@@ -42,7 +44,9 @@ class ProjectsService
             throw new InvalidArgumentException('projectId must not be empty');
         }
 
-        $project = Project::find($projectId);
+        // M2.1B: eager-load activities and milestones so toArray() includes them
+        // CORE-01C-2: also eager-load parties
+        $project = Project::with(['activities', 'milestones', 'parties'])->find($projectId);
 
         if ($project === null) {
             throw new InvalidArgumentException("Project not found: {$projectId}");
@@ -379,5 +383,157 @@ class ProjectsService
     public function listProjects(int $perPage = 20): \Illuminate\Contracts\Pagination\LengthAwarePaginator
     {
         return Project::orderByDesc('created_at')->paginate($perPage);
+    }
+
+    /**
+     * ListDailyReports — paginated list of daily reports for a project.
+     *
+     * Tenant isolation: DailyReport uses connection='tenant' (OD-001).
+     * The project is resolved via getProject() which throws if not found or
+     * if it does not belong to the active tenant schema — enforcing cross-tenant
+     * isolation automatically.
+     *
+     * M2.3A-FIX — BLOCKER-M23A-001
+     */
+    public function listDailyReports(string $projectId, int $perPage = 20): \Illuminate\Contracts\Pagination\LengthAwarePaginator
+    {
+        // getProject() throws InvalidArgumentException if the project is not
+        // found in the current tenant schema — this enforces tenant isolation.
+        $project = $this->getProject($projectId);
+
+        return DailyReport::where('project_id', $project->id)
+            ->orderByDesc('report_date')
+            ->orderByDesc('created_at')
+            ->paginate($perPage);
+    }
+
+    // -------------------------------------------------------------------------
+    // Party Operations (CORE-01C)
+    // -------------------------------------------------------------------------
+
+    /** Allowed party roles. */
+    private const ALLOWED_PARTY_ROLES = ['owner', 'consultant', 'main_contractor'];
+
+    /**
+     * ListProjectParties — returns the parties list for a project.
+     *
+     * Tenant isolation: getProject() throws if the project is not in the
+     * active tenant schema.
+     *
+     * CORE-01C-2
+     */
+    public function listProjectParties(string $projectId): array
+    {
+        if (empty($projectId)) {
+            throw new InvalidArgumentException('projectId must not be empty');
+        }
+
+        $project = Project::find($projectId);
+
+        if ($project === null) {
+            return [];
+        }
+
+        return $project->parties()->get()->toArray();
+    }
+
+    /**
+     * ReplaceProjectParties — atomically replaces all parties for a project.
+     *
+     * Validates:
+     *  - Project exists in current tenant schema.
+     *  - Each role is one of ALLOWED_PARTY_ROLES.
+     *  - No duplicate (client_id, role) pairs in the input.
+     *  - Each client_id exists and is active via CRMService::validateClient().
+     *
+     * Atomicity: wrapped in a DB Transaction. Audit log is written only after
+     * the transaction commits to avoid a successful audit entry for a
+     * rolled-back operation.
+     *
+     * CORE-01C-2
+     *
+     * @param  array<array{client_id: string, role: string}>  $parties
+     * @throws InvalidArgumentException
+     */
+    public function replaceProjectParties(
+        string $projectId,
+        array $parties,
+        ?string $actorId,
+        string $tenantSlug
+    ): array {
+        if (empty($projectId)) {
+            throw new InvalidArgumentException('projectId must not be empty');
+        }
+
+        // ── 1. Resolve project (tenant isolation) ────────────────────────────
+        $project = $this->getProject($projectId);
+
+        // ── 2. Validate input ─────────────────────────────────────────────────
+        $seen = [];
+        foreach ($parties as $index => $entry) {
+            $clientId = $entry['client_id'] ?? null;
+            $role     = $entry['role'] ?? null;
+
+            if (empty($clientId) || empty($role)) {
+                throw new InvalidArgumentException(
+                    "parties[{$index}]: client_id and role are required"
+                );
+            }
+
+            if (!in_array($role, self::ALLOWED_PARTY_ROLES, true)) {
+                throw new InvalidArgumentException(
+                    "parties[{$index}]: role '{$role}' is not allowed. "
+                    . 'Allowed: ' . implode(', ', self::ALLOWED_PARTY_ROLES)
+                );
+            }
+
+            $key = "{$clientId}|{$role}";
+            if (isset($seen[$key])) {
+                throw new InvalidArgumentException(
+                    "parties[{$index}]: duplicate (client_id, role) pair"
+                );
+            }
+            $seen[$key] = true;
+
+            // Validate client via CRM contract — no direct cross-module model access
+            $crmService     = app(CRMService::class);
+            $validation     = $crmService->validateClient($clientId);
+            if (!$validation['isValid']) {
+                throw new InvalidArgumentException(
+                    "parties[{$index}]: client_id '{$clientId}' — {$validation['reason']}"
+                );
+            }
+        }
+
+        // ── 3. Capture before-state for audit ────────────────────────────────
+        $before = $project->parties()->get()->toArray();
+
+        // ── 4. Atomic replace ─────────────────────────────────────────────────
+        $newParties = DB::connection('tenant')->transaction(function () use ($project, $parties, $tenantSlug) {
+            $project->parties()->delete();
+
+            $created = [];
+            foreach ($parties as $entry) {
+                $created[] = ProjectParty::create([
+                    'project_id'  => $project->id,
+                    'client_id'   => $entry['client_id'],
+                    'role'        => $entry['role'],
+                    'tenant_slug' => $tenantSlug,
+                ]);
+            }
+
+            return $created;
+        });
+
+        // ── 5. Audit — only after successful commit ───────────────────────────
+        $this->auditService->logEvent('projects.project.parties_replaced', $actorId, [
+            'tenant_slug'  => $tenantSlug,
+            'subject_type' => 'project',
+            'subject_id'   => $project->id,
+            'before'       => $before,
+            'after'        => array_map(fn ($p) => $p->toArray(), $newParties),
+        ]);
+
+        return array_map(fn ($p) => $p->toArray(), $newParties);
     }
 }

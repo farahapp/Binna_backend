@@ -80,14 +80,50 @@ yarn-error.log
 
 # --- Corrupt / shell-fragment filenames (filesystem artefacts) ---
 /$pw])
-/'binaa2_tenant_auth_smoke']
+/'binaa2_tenant_auth_smoke'])
 /bootstrap()
 /environment()
+/environment().PHP_EOL
 /first()
 /getMessage()
-/['Content-Type
+/\['Content-Type
 /10
 /true
+/end_date
+/available_at)
+/get(\['id'
+/table('accounting_periods')
+/where('status'
+/'binaa2_tenant_auth_smoke']
 
 # --- .env.testing (contains APP_KEY and DB credentials) ---
 .env.testing
+
+# --- BUG-B10 local diagnostic scripts (root level) ---
+/b10_accounting_listener_test.php
+/b10_accounting_with_cash_account.php
+/b10_check_existing_journal.php
+/b10_e2e_collection_test.php
+/b10_pre_state.php
+/b10a_check_reference_column.php
+/b10a_hasuuids_check.php
+/b10a_uuid_collision_analysis.php
+/b10b_http_e2e_setup.php
+/b10c_queue_e2e_setup.php
+/b10d_check_queue.php
+/b10d_run_queue.php
+/b10d_verify_journal.php
+/b10d_verify_journal2.php
+
+# --- ProjectParty local diagnostic scripts (root level) ---
+/apply_pp_migration.php
+/check_pp.php
+/chk_conn.php
+/create_pp.php
+/db_diag.php
+/mk_pp.php
+/verify_pp.php
+
+# --- Storage test result files ---
+/storage/notif_results.xml
+/storage/notif_results2.xml

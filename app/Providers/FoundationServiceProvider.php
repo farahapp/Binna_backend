@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
+use App\Foundation\SwitchToTenantSchemaForJob;
 use App\Foundation\TenantBaselineMigrator;
 use App\Foundation\TenantContextResolver;
 use App\Foundation\TenantProvisioner;

@@ -158,6 +158,40 @@ class AuthController extends Controller
     }
 
     // =========================================================================
+    // Current User Identity (B-01 — Mobile /api/auth/me)
+    // =========================================================================
+
+    /**
+     * Return the authenticated user's profile.
+     *
+     * GET /api/auth/me
+     * Headers: Authorization: Bearer {token}, X-Tenant: {slug}
+     *
+     * Used by Flutter DashboardScreen to display real user data from the server
+     * instead of relying solely on local session data (B-01).
+     *
+     * Contract:
+     * {
+     *   "id":         "uuid",
+     *   "name":       "string",
+     *   "email":      "string",
+     *   "tenant_slug":"string"
+     * }
+     */
+    public function me(Request $request): JsonResponse
+    {
+        $user          = $request->user();
+        $tenantContext = app(TenantContext::class);
+
+        return response()->json([
+            'id'          => (string) $user->id,
+            'name'        => $user->name,
+            'email'       => $user->email,
+            'tenant_slug' => $tenantContext->slug,
+        ]);
+    }
+
+    // =========================================================================
     // SPA Cookie-based Authentication (C-002 §26 — Web Auth RESOLVED 2026-10-07)
     // =========================================================================
 

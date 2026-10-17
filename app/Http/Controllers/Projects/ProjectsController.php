@@ -181,6 +181,33 @@ class ProjectsController extends Controller
     // =========================================================================
 
     /**
+     * GET /api/v1/projects/{id}/daily-reports
+     *
+     * M2.3A-FIX — BLOCKER-M23A-001
+     * Returns paginated list of daily reports for the given project.
+     * Tenant isolation is enforced by ProjectsService::listDailyReports()
+     * via getProject() which throws if the project is not in the current
+     * tenant schema.
+     */
+    public function listDailyReports(Request $request, string $id): JsonResponse
+    {
+        try {
+            $result = $this->projectsService->listDailyReports($id);
+            return response()->json([
+                'data' => array_map(fn ($r) => $r->toArray(), $result->items()),
+                'meta' => [
+                    'current_page' => $result->currentPage(),
+                    'last_page'    => $result->lastPage(),
+                    'per_page'     => $result->perPage(),
+                    'total'        => $result->total(),
+                ],
+            ], 200);
+        } catch (\InvalidArgumentException $e) {
+            return response()->json(['message' => 'Project not found.'], 404);
+        }
+    }
+
+    /**
      * POST /api/v1/projects/{id}/daily-reports
      */
     public function submitDailyReport(Request $request, string $id): JsonResponse
@@ -256,6 +283,51 @@ class ProjectsController extends Controller
         try {
             $member = $this->projectsService->assignTeamMember($id, $validated['user_id'], $validated['role'] ?? null);
             return response()->json($member->toArray(), 201);
+        } catch (\InvalidArgumentException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
+    }
+
+    // =========================================================================
+    // PARTY OPERATIONS (CORE-01C-2)
+    // =========================================================================
+
+    /**
+     * GET /api/v1/projects/{id}/parties
+     */
+    public function listProjectParties(Request $request, string $id): JsonResponse
+    {
+        $parties = $this->projectsService->listProjectParties($id);
+        return response()->json($parties, 200);
+    }
+
+    /**
+     * PUT /api/v1/projects/{id}/parties
+     */
+    public function replaceProjectParties(Request $request, string $id): JsonResponse
+    {
+        $validated = $request->validate([
+            // CORE-01C-4: 'parties' must be present but may be an empty array
+            // (empty array = clear all parties — atomic replace contract).
+            // 'present' accepts [] whereas 'required' rejects it in Laravel.
+            // Element-level rules only apply when the array is non-empty.
+            'parties'              => 'present|array',
+            'parties.*.client_id' => 'required|uuid',
+            'parties.*.role'      => 'required|string|max:100',
+        ]);
+
+        try {
+            $actorId    = $request->user()?->id;
+            $tenantSlug = $request->header('X-Tenant', '');
+
+            $parties = $this->projectsService->replaceProjectParties(
+                $id,
+                $validated['parties'],
+                $actorId,
+                $tenantSlug
+            );
+
+            return response()->json($parties, 200);
         } catch (\InvalidArgumentException $e) {
             return response()->json(['message' => $e->getMessage()], 422);
         }

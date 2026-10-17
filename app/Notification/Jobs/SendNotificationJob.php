@@ -2,6 +2,7 @@
 declare(strict_types=1);
 namespace App\Notification\Jobs;
 
+use App\Foundation\SwitchToTenantSchemaForJob;
 use App\Foundation\TenantContextResolver;
 use App\Notification\Notification;
 use App\Notification\NotificationHistory;
@@ -34,6 +35,25 @@ class SendNotificationJob implements ShouldQueue
         public readonly string $notificationId,
         public readonly string $tenantSlug,
     ) {}
+
+    /**
+     * Job middleware: switch the 'tenant' connection to the correct per-tenant
+     * schema before the job runs, and restore it afterwards.
+     *
+     * tenantSlug is captured at dispatch time from the job's own property.
+     * schema_name is resolved from the database by SwitchToTenantSchemaForJob —
+     * never derived from the slug directly (OD-001 / OI-QUEUE-001).
+     */
+    public function middleware(): array
+    {
+        $tenantSlug = $this->tenantSlug;
+
+        return [
+            function (mixed $job, callable $next) use ($tenantSlug): void {
+                app(SwitchToTenantSchemaForJob::class)->handle($job, $next, $tenantSlug);
+            },
+        ];
+    }
 
     /**
      * Execute the job.

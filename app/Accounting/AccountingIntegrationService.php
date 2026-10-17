@@ -20,6 +20,9 @@ use RuntimeException;
  *  DEC-005: PostingRule determines both GL accounts for BankTransaction
  *  DEC-006: payment_method + bank_account_id/cash_account_id required for PaymentReceived
  *  DEC-007: QAR only
+ *  DEC-B10A: reference = '{PREFIX}-{full_sourceDocumentId}' — full UUID prevents
+ *            collision with UUID v7 (timestamp-ordered) used by HasUuids.
+ *            Approved 2026-10-13. Replaces substr($id, 0, 8) in all three handlers.
  *
  * Policy: FAIL → NO JOURNAL ENTRY → throw RuntimeException (queue handles retry)
  */
@@ -67,7 +70,7 @@ class AccountingIntegrationService
         // Create JournalEntry
         $this->createAndPostJournalEntry(
             tenantSlug: $tenantSlug,
-            reference: 'INV-' . substr($sourceDocumentId, 0, 8),
+            reference: 'INV-' . $sourceDocumentId, // DEC-B10A: full UUID — no collision with UUID v7
             sourceModule: $sourceModule,
             sourceDocumentId: $sourceDocumentId,
             sourceDocumentType: $sourceDocumentType,
@@ -131,7 +134,7 @@ class AccountingIntegrationService
         // Create JournalEntry
         $this->createAndPostJournalEntry(
             tenantSlug: $tenantSlug,
-            reference: 'PAY-' . substr($sourceDocumentId, 0, 8),
+            reference: 'PAY-' . $sourceDocumentId, // DEC-B10A: full UUID — no collision with UUID v7
             sourceModule: $sourceModule,
             sourceDocumentId: $sourceDocumentId,
             sourceDocumentType: $sourceDocumentType,
@@ -180,7 +183,7 @@ class AccountingIntegrationService
         // Create JournalEntry
         $this->createAndPostJournalEntry(
             tenantSlug: $tenantSlug,
-            reference: 'BTX-' . substr($sourceDocumentId, 0, 8),
+            reference: 'BTX-' . $sourceDocumentId, // DEC-B10A: full UUID — no collision with UUID v7
             sourceModule: $sourceModule,
             sourceDocumentId: $sourceDocumentId,
             sourceDocumentType: $sourceDocumentType,

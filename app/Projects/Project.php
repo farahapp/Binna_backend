@@ -79,6 +79,11 @@ class Project extends Model
         return $this->hasMany(ProjectTeam::class, 'project_id');
     }
 
+    public function parties(): HasMany
+    {
+        return $this->hasMany(ProjectParty::class, 'project_id');
+    }
+
     // Status helpers
 
     public function isDraft(): bool { return $this->status === 'draft'; }

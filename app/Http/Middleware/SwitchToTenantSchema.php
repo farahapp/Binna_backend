@@ -50,13 +50,18 @@ class SwitchToTenantSchema
         Config::set('database.connections.tenant.prefix',    '');
         Config::set('database.connections.tenant.strict',    true);
 
-        // Only purge and reconnect when the target schema has actually changed.
-        // Purging an already-correct connection is unnecessary and, during tests,
-        // would destroy the transaction that the testing framework opened on this
-        // connection — breaking test isolation.
+        // Only switch the active database when the target schema has changed.
+        //
+        // We use a USE statement instead of DB::purge() + DB::reconnect() to
+        // avoid destroying any open database transaction on this connection.
+        // During tests, RefreshDatabase wraps each test in a transaction on the
+        // 'tenant' connection; purging the connection would roll back that
+        // transaction and break test isolation.
+        //
+        // In production there are no open transactions at middleware time, so
+        // the USE statement is equivalent to a reconnect for our purposes.
         if ($currentDatabase !== $schemaName) {
-            DB::purge('tenant');
-            DB::reconnect('tenant');
+            DB::connection('tenant')->statement("USE `{$schemaName}`");
         }
 
         return $next($request);

@@ -8,7 +8,6 @@ use App\Accounting\Listeners\FinanceEventAccountingListener;
 use App\Finance\Events\BankTransactionRecorded;
 use App\Finance\Events\InvoiceIssued;
 use App\Finance\Events\PaymentReceived;
-use Illuminate\Contracts\Support\DeferrableProvider;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\ServiceProvider;
 
@@ -18,21 +17,14 @@ use Illuminate\Support\ServiceProvider;
  * Registers AccountingIntegrationService singleton.
  * Registers event listeners for Finance domain events.
  *
- * Implements DeferrableProvider so this provider is only loaded when
- * AccountingIntegrationService is actually resolved from the container,
- * preventing PHPUnit bootstrap hang in unrelated test suites.
+ * B-10D FIX: DeferrableProvider removed.
+ * Root cause: DeferrableProvider caused boot() to be skipped at app bootstrap,
+ * so PaymentReceived/InvoiceIssued/BankTransactionRecorded listeners were never
+ * registered with the Event Dispatcher. Event listeners require boot() to run
+ * at startup — deferral is incompatible with event registration.
  */
-class FinanceAccountingIntegrationServiceProvider extends ServiceProvider implements DeferrableProvider
+class FinanceAccountingIntegrationServiceProvider extends ServiceProvider
 {
-    /**
-     * Declare the services provided by this provider.
-     * Required by DeferrableProvider — tells Laravel when to load this provider.
-     */
-    public function provides(): array
-    {
-        return [AccountingIntegrationService::class];
-    }
-
     public function register(): void
     {
         $this->app->singleton(AccountingIntegrationService::class, function ($app) {
