@@ -82,7 +82,16 @@ class AuthController extends Controller
             ]);
         }
 
-        $token = $user->createToken('api')->plainTextToken;
+        // SESSION 27D-6: Issue least-privilege PAT for test/mobile flow.
+        // Abilities: projects:read, projects:activities:create, projects:activities:update-status
+        // SPA cookie auth (spaLogin) does NOT issue a PAT — no abilities needed there.
+        // Wildcard '*' tokens issued outside this flow are NOT revoked here;
+        // migration to scoped tokens is a separate decision (see SESSION 27D-6 CHECKPOINT).
+        $token = $user->createToken('api', [
+            'projects:read',
+            'projects:activities:create',
+            'projects:activities:update-status',
+        ])->plainTextToken;
 
         // Successful login audit — Security Observational (NEW-003 §3.4).
         // actor_id = authenticated user's id.

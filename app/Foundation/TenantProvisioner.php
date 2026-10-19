@@ -13,9 +13,13 @@ use RuntimeException;
  *
  *   1. Insert Tenant record (status = pending) in shared schema.
  *   2. CREATE DATABASE for the tenant schema (server-generated name).
- *   3. Apply the per-tenant baseline migration.
- *   4. Record the migration in tenant_migrations.
- *   5. Set status = active.
+ *   3. Apply the per-tenant baseline migration (schema_info marker — Batch 1).
+ *   4. Apply IAM migrations (users, roles, permissions, PATs — Batch 2).
+ *   5. Record all migrations in tenant_migrations.
+ *   6. Set status = active.
+ *
+ * A tenant is NEVER activated unless both Batch 1 and Batch 2 succeed.
+ * This guarantees that every active tenant has a login-ready schema.
  *
  * schema_name is ALWAYS derived server-side from the slug.
  * The client MUST NOT supply schema_name.
@@ -24,6 +28,7 @@ class TenantProvisioner
 {
     public function __construct(
         private readonly TenantBaselineMigrator $baselineMigrator,
+        private readonly IamMigrator            $iamMigrator,
     ) {}
 
     /**
@@ -60,14 +65,20 @@ class TenantProvisioner
             // Step 2 — Create the MySQL database/schema.
             $this->createSchema($schemaName);
 
-            // Step 3 & 4 — Apply baseline migration and record it.
+            // Step 3 & 4 — Apply baseline migration (schema_info — Batch 1) and record it.
             $this->baselineMigrator->run($tenant);
 
-            // Step 5 — Activate the tenant.
+            // Step 5 — Apply IAM migrations (users, roles, permissions, PATs — Batch 2).
+            // This MUST succeed before the tenant is activated. If it fails, the tenant
+            // remains in 'pending' status and cannot be used for login.
+            $this->iamMigrator->run($tenant);
+
+            // Step 6 — Activate the tenant only after ALL migrations succeed.
             $tenant->status = 'active';
             $tenant->save();
         } catch (\Throwable $e) {
             // Leave tenant in 'pending' so ops can retry or clean up.
+            // Both migrators record 'failed' entries in tenant_migrations for diagnostics.
             throw new RuntimeException(
                 "Tenant provisioning failed for slug [{$slug}]: ".$e->getMessage(),
                 previous: $e,
