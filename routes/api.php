@@ -219,6 +219,10 @@ Route::middleware(['tenant', 'tenant.schema', 'auth:sanctum'])->group(function (
         // Activity Operations
         Route::post('/{id}/activities', [ProjectsController::class, 'addActivity'])
             ->name('activities.add');
+        // Activity Status Update — API-GAP-M2-01
+        // Lifecycle: pending → in_progress → completed / cancelled
+        Route::patch('/activities/{activityId}/status', [ProjectsController::class, 'updateActivityStatus'])
+            ->name('activities.update-status');
 
         // Daily Report Operations
         Route::get('/{id}/daily-reports', [ProjectsController::class, 'listDailyReports'])

@@ -265,6 +265,90 @@ class ProjectsService
     }
 
     /**
+     * Update the status of a WBS activity.
+     *
+     * Valid transitions (from ProjectActivity model docblock):
+     *   pending     → in_progress | cancelled
+     *   in_progress → completed   | cancelled
+     *   completed   → (terminal — no further transitions)
+     *   cancelled   → (terminal — no further transitions)
+     *
+     * Sets actual_start when transitioning to in_progress (if not already set).
+     * Sets actual_end when transitioning to completed or cancelled (if not already set).
+     *
+     * Tenant isolation (F-01 / API-GAP-M2-01): the activity is fetched with a
+     * compound predicate on both id AND tenant_slug so that an actor from one
+     * tenant cannot mutate an activity belonging to another tenant.  A missing
+     * or mismatched tenant_slug is treated as "not found" (404 policy — no
+     * information leakage about cross-tenant record existence).
+     *
+     * API-GAP-M2-01 — resolved in this method.
+     */
+    public function updateActivityStatus(
+        string $activityId,
+        string $newStatus,
+        string $tenantSlug,
+        ?string $actorId = null,
+    ): ProjectActivity {
+        if (empty($activityId)) {
+            throw new InvalidArgumentException('activityId must not be empty');
+        }
+
+        if (empty($tenantSlug)) {
+            throw new InvalidArgumentException('tenantSlug must not be empty');
+        }
+
+        $validTransitions = [
+            'pending'     => ['in_progress', 'cancelled'],
+            'in_progress' => ['completed', 'cancelled'],
+            'completed'   => [],
+            'cancelled'   => [],
+        ];
+
+        // Tenant-scoped lookup — enforces cross-tenant isolation (F-01).
+        // Using both id and tenant_slug so a valid UUID from another tenant
+        // returns null (→ 404) rather than leaking its existence.
+        $activity = ProjectActivity::where('id', $activityId)
+            ->where('tenant_slug', $tenantSlug)
+            ->first();
+
+        if ($activity === null) {
+            throw new InvalidArgumentException("Activity not found: {$activityId}");
+        }
+
+        $allowedNext = $validTransitions[$activity->status] ?? [];
+
+        if (!in_array($newStatus, $allowedNext, true)) {
+            throw new InvalidArgumentException(
+                "Invalid status transition from '{$activity->status}' to '{$newStatus}'."
+            );
+        }
+
+        $oldStatus        = $activity->status;
+        $activity->status = $newStatus;
+
+        if ($newStatus === 'in_progress' && $activity->actual_start === null) {
+            $activity->actual_start = now();
+        }
+
+        if (in_array($newStatus, ['completed', 'cancelled'], true) && $activity->actual_end === null) {
+            $activity->actual_end = now();
+        }
+
+        $activity->save();
+
+        $this->auditService->logEvent('projects.activity.status_updated', $actorId, [
+            'tenant_slug'  => $activity->tenant_slug,
+            'subject_type' => 'project_activity',
+            'subject_id'   => $activity->id,
+            'old_status'   => $oldStatus,
+            'new_status'   => $newStatus,
+        ]);
+
+        return $activity;
+    }
+
+    /**
      * Submit a daily report for a project.
      */
     public function submitDailyReport(string $projectId, array $attributes): DailyReport

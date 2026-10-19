@@ -176,6 +176,43 @@ class ProjectsController extends Controller
         }
     }
 
+    /**
+     * PATCH /api/v1/projects/activities/{activityId}/status
+     *
+     * Update the status of a WBS activity.
+     * Valid transitions (from ProjectActivity model):
+     *   pending → in_progress | cancelled
+     *   in_progress → completed | cancelled
+     *   completed → (terminal)
+     *   cancelled → (terminal)
+     *
+     * API-GAP-M2-01 — resolved.
+     */
+    public function updateActivityStatus(Request $request, string $activityId): JsonResponse
+    {
+        $request->validate([
+            'status' => 'required|string|in:pending,in_progress,completed,cancelled',
+        ]);
+
+        try {
+            $actorId    = $request->user()?->id;
+            $tenantSlug = $request->header('X-Tenant', '');
+            $activity   = $this->projectsService->updateActivityStatus(
+                $activityId,
+                $request->input('status'),
+                $tenantSlug,
+                $actorId,
+            );
+            return response()->json($activity->toArray(), 200);
+        } catch (\InvalidArgumentException $e) {
+            $msg = $e->getMessage();
+            if (str_contains($msg, 'not found')) {
+                return response()->json(['message' => 'Activity not found.'], 404);
+            }
+            return response()->json(['message' => $msg], 422);
+        }
+    }
+
     // =========================================================================
     // DAILY REPORT OPERATIONS
     // =========================================================================

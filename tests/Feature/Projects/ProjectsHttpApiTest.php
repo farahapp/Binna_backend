@@ -71,6 +71,12 @@ class ProjectsHttpApiTest extends TestCase
             DB::connection('tenant')->table('users')->delete();
             DB::connection('mysql')->table('tenants')->where('slug', $this->tenantSlug)->delete();
         } catch (\Throwable) {}
+        // CORE-01C-3E: Purge the tenant connection before parent::tearDown() so
+        // that no open PDO handle to binaa2_testing remains when RefreshDatabase
+        // resets $migrated and migrate:fresh drops/recreates tables for the next
+        // test. Without this, MySQL may refuse to drop 'users' (already exists)
+        // because the tenant PDO still holds a reference to the same schema.
+        DB::purge('tenant');
         parent::tearDown();
     }
 
@@ -660,6 +666,290 @@ class ProjectsHttpApiTest extends TestCase
     }
 
     // =========================================================================
+    // PATCH /api/v1/projects/activities/{id}/status — Activity Status Update
+    // API-GAP-M2-01 — WBS activity lifecycle: pending → in_progress → completed / cancelled
+    // =========================================================================
+
+    public function test_unauthenticated_patch_activity_status_returns_401(): void
+    {
+        $response = $this->patchJson(
+            '/api/v1/projects/activities/00000000-0000-0000-0000-000000000000/status',
+            ['status' => 'in_progress'],
+            $this->tenantHeaders()
+        );
+        $response->assertStatus(401);
+    }
+
+    public function test_update_activity_status_pending_to_in_progress_returns_200(): void
+    {
+        $projectId  = $this->createProjectViaApi(['name' => 'Activity Status — In Progress']);
+        $activityId = $this->postJson(
+            "/api/v1/projects/{$projectId}/activities",
+            ['name' => 'Excavation Work'],
+            $this->authHeaders()
+        )->assertStatus(201)->json('id');
+
+        $response = $this->patchJson(
+            "/api/v1/projects/activities/{$activityId}/status",
+            ['status' => 'in_progress'],
+            $this->authHeaders()
+        );
+
+        $response->assertStatus(200);
+        $response->assertJsonFragment(['id' => $activityId]);
+        $response->assertJsonFragment(['status' => 'in_progress']);
+    }
+
+    public function test_update_activity_status_in_progress_to_completed_returns_200(): void
+    {
+        $projectId  = $this->createProjectViaApi(['name' => 'Activity Status — Completed']);
+        $activityId = $this->postJson(
+            "/api/v1/projects/{$projectId}/activities",
+            ['name' => 'Concrete Pouring'],
+            $this->authHeaders()
+        )->assertStatus(201)->json('id');
+
+        // pending → in_progress
+        $this->patchJson(
+            "/api/v1/projects/activities/{$activityId}/status",
+            ['status' => 'in_progress'],
+            $this->authHeaders()
+        )->assertStatus(200);
+
+        // in_progress → completed
+        $response = $this->patchJson(
+            "/api/v1/projects/activities/{$activityId}/status",
+            ['status' => 'completed'],
+            $this->authHeaders()
+        );
+
+        $response->assertStatus(200);
+        $response->assertJsonFragment(['status' => 'completed']);
+    }
+
+    public function test_update_activity_status_pending_to_cancelled_returns_200(): void
+    {
+        $projectId  = $this->createProjectViaApi(['name' => 'Activity Status — Cancelled']);
+        $activityId = $this->postJson(
+            "/api/v1/projects/{$projectId}/activities",
+            ['name' => 'Cancelled Scope'],
+            $this->authHeaders()
+        )->assertStatus(201)->json('id');
+
+        $response = $this->patchJson(
+            "/api/v1/projects/activities/{$activityId}/status",
+            ['status' => 'cancelled'],
+            $this->authHeaders()
+        );
+
+        $response->assertStatus(200);
+        $response->assertJsonFragment(['status' => 'cancelled']);
+    }
+
+    public function test_update_activity_status_invalid_value_returns_422(): void
+    {
+        $projectId  = $this->createProjectViaApi(['name' => 'Activity Status — Invalid Value']);
+        $activityId = $this->postJson(
+            "/api/v1/projects/{$projectId}/activities",
+            ['name' => 'Test Activity'],
+            $this->authHeaders()
+        )->assertStatus(201)->json('id');
+
+        $response = $this->patchJson(
+            "/api/v1/projects/activities/{$activityId}/status",
+            ['status' => 'not-a-real-status'],
+            $this->authHeaders()
+        );
+
+        $response->assertStatus(422);
+    }
+
+    public function test_update_activity_status_invalid_transition_returns_422(): void
+    {
+        // pending → completed is not a valid transition (must go via in_progress)
+        $projectId  = $this->createProjectViaApi(['name' => 'Activity Status — Invalid Transition']);
+        $activityId = $this->postJson(
+            "/api/v1/projects/{$projectId}/activities",
+            ['name' => 'Transition Test'],
+            $this->authHeaders()
+        )->assertStatus(201)->json('id');
+
+        $response = $this->patchJson(
+            "/api/v1/projects/activities/{$activityId}/status",
+            ['status' => 'completed'],
+            $this->authHeaders()
+        );
+
+        $response->assertStatus(422);
+    }
+
+    public function test_update_activity_status_not_found_returns_404(): void
+    {
+        $response = $this->patchJson(
+            '/api/v1/projects/activities/00000000-0000-0000-0000-000000000000/status',
+            ['status' => 'in_progress'],
+            $this->authHeaders()
+        );
+
+        $response->assertStatus(404);
+        $response->assertJsonFragment(['message' => 'Activity not found.']);
+    }
+
+    public function test_update_activity_status_from_terminal_state_returns_422(): void
+    {
+        // cancelled is a terminal state — no further transitions allowed
+        $projectId  = $this->createProjectViaApi(['name' => 'Activity Status — Terminal']);
+        $activityId = $this->postJson(
+            "/api/v1/projects/{$projectId}/activities",
+            ['name' => 'Terminal Activity'],
+            $this->authHeaders()
+        )->assertStatus(201)->json('id');
+
+        // Move to cancelled (terminal)
+        $this->patchJson(
+            "/api/v1/projects/activities/{$activityId}/status",
+            ['status' => 'cancelled'],
+            $this->authHeaders()
+        )->assertStatus(200);
+
+        // Any further transition must fail
+        $response = $this->patchJson(
+            "/api/v1/projects/activities/{$activityId}/status",
+            ['status' => 'pending'],
+            $this->authHeaders()
+        );
+
+        $response->assertStatus(422);
+    }
+
+    public function test_update_activity_status_cross_tenant_isolation_returns_404(): void
+    {
+        // F-06 — Cross-tenant isolation for PATCH /activities/{id}/status.
+        //
+        // Setup: create an activity under the primary test tenant (Tenant A).
+        // Then issue the PATCH request using a second tenant's X-Tenant header
+        // (Tenant B) but with the same authenticated user token.
+        // The service must not find the activity because tenant_slug does not
+        // match, and must return 404 — no information leakage about Tenant A's
+        // record existence.
+        //
+        // The activity record is real and exists in the DB; this test proves
+        // isolation is enforced by the compound (id + tenant_slug) predicate,
+        // not by a missing UUID.
+
+        // ── 1. Create a real activity under Tenant A (the primary test tenant) ──
+        $projectId  = $this->createProjectViaApi(['name' => 'Tenant A Project — Isolation']);
+        $activityId = $this->postJson(
+            "/api/v1/projects/{$projectId}/activities",
+            ['name' => 'Tenant A Activity'],
+            $this->authHeaders()
+        )->assertStatus(201)->json('id');
+
+        // Confirm the activity exists and is in pending state under Tenant A.
+        $this->assertDatabaseHas('project_activities', [
+            'id'          => $activityId,
+            'tenant_slug' => $this->tenantSlug,
+            'status'      => 'pending',
+        ], 'tenant');
+
+        // -- 2. Register Tenant B via a mock TenantContextResolver --
+        //
+        // Root-cause fix (SESSION 25D):
+        // The previous fixture used schema_name = 'binaa2_testing' for Tenant B,
+        // which duplicates the primary tenant's schema_name. The unique constraint
+        // on tenants.schema_name caused insertOrIgnore to silently skip the row,
+        // leaving Tenant B unregistered. The middleware then returned
+        // "Tenant not found." before the request reached the service, making the
+        // test pass for the wrong reason (middleware 404, not isolation 404).
+        //
+        // Fix: mock the TenantContextResolver singleton so that Tenant B's slug
+        // resolves to a TenantContext with schemaName = 'binaa2_testing' (the
+        // same physical schema used in the test environment). This avoids the
+        // unique constraint entirely and ensures SwitchToTenantSchema can issue
+        // USE inaa2_testing without an Access Denied error.
+        //
+        // The isolation predicate under test is tenant_slug in project_activities,
+        // not the schema boundary. Both tenants legitimately share binaa2_testing
+        // in the test environment.
+        $tenantBSlug = 'projects-http-test-tenant-b';
+
+        // Bind a mock resolver that returns a synthetic TenantContext for Tenant B
+        // and delegates all other slugs to the real resolver.
+        $realResolver = $this->app->make(\App\Foundation\TenantContextResolver::class);
+        $this->app->instance(
+            \App\Foundation\TenantContextResolver::class,
+            new class($realResolver, $tenantBSlug) extends \App\Foundation\TenantContextResolver {
+                public function __construct(
+                    private readonly \App\Foundation\TenantContextResolver $real,
+                    private readonly string $tenantBSlug,
+                ) {}
+                public function tryResolve(string $slug): ?\App\Foundation\TenantContext {
+                    if ($slug === $this->tenantBSlug) {
+                        return new \App\Foundation\TenantContext(
+                            id: 99999,
+                            slug: $this->tenantBSlug,
+                            name: 'Tenant B -- Isolation Test',
+                            schemaName: 'binaa2_testing',
+                            status: 'active',
+                        );
+                    }
+                    return $this->real->tryResolve($slug);
+                }
+                public function resolve(string $slug): \App\Foundation\TenantContext {
+                    if ($slug === $this->tenantBSlug) {
+                        return $this->tryResolve($slug);
+                    }
+                    return $this->real->resolve($slug);
+                }
+            }
+        );
+
+        // Explicit setup assertion: the mock must resolve Tenant B before we proceed.
+        $resolvedB = $this->app->make(\App\Foundation\TenantContextResolver::class)->tryResolve($tenantBSlug);
+        $this->assertNotNull($resolvedB, 'Fixture failure: Tenant B mock did not resolve.');
+        $this->assertSame($tenantBSlug, $resolvedB->slug);
+
+        try {
+            // -- 3. Issue PATCH with Tenant B's X-Tenant header --
+            // The activity belongs to Tenant A; the service must return 404
+            // because the compound predicate (id + tenant_slug) does not match
+            // Tenant B's slug -- not because the schema is different.
+            $response = $this->patchJson(
+                "/api/v1/projects/activities/{$activityId}/status",
+                ['status' => 'in_progress'],
+                [
+                    'X-Tenant'      => $tenantBSlug,
+                    'Authorization' => 'Bearer ' . $this->token,
+                ]
+            );
+
+            $response->assertStatus(404);
+            $response->assertJsonFragment(['message' => 'Activity not found.']);
+
+            // -- 4. Verify the activity was NOT mutated --
+            $this->assertDatabaseHas('project_activities', [
+                'id'     => $activityId,
+                'status' => 'pending',
+            ], 'tenant');
+
+            // -- 4b. Verify Tenant A can still update its own activity --
+            $this->patchJson(
+                "/api/v1/projects/activities/{$activityId}/status",
+                ['status' => 'in_progress'],
+                $this->authHeaders()
+            )->assertStatus(200);
+
+            $this->assertDatabaseHas('project_activities', [
+                'id'     => $activityId,
+                'status' => 'in_progress',
+            ], 'tenant');
+        } finally {
+            // -- 5. Restore the real TenantContextResolver singleton --
+            $this->app->instance(\App\Foundation\TenantContextResolver::class, $realResolver);
+        }
+    }
+
+    // =========================================================================
     // PARTY OPERATIONS (CORE-01C-2)
     // NOTE: The tests below require the project_parties table (Migration
     //       2026_09_28_000007) to be applied to binaa2_testing.
@@ -1027,3 +1317,4 @@ class ProjectsHttpApiTest extends TestCase
         $this->assertEquals('owner', $list[0]['role']);
     }
 }
+
