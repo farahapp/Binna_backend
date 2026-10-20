@@ -36,12 +36,94 @@ class TenantIamProvisioningTest extends TestCase
     /** Tenant schemas created during this test run — cleaned up in tearDown. */
     private array $createdSchemas = [];
 
+    /**
+     * Override the mysql connection to use the isolated MySQL 3308 provisioning
+     * instance for this test class only.
+     *
+     * This must run BEFORE parent::setUp() so that RefreshDatabase uses the
+     * correct connection. Credentials are read from .env.testing.prov which is
+     * gitignored and restricted to the local user.
+     *
+     * All other test classes continue to use phpunit_3307@127.0.0.1:3307
+     * as configured in phpunit.xml and .env.testing — this override is
+     * scoped exclusively to TenantIamProvisioningTest.
+     *
+     * IAM-PROV-013: Isolated MySQL 3308 provisioning instance.
+     */
+    /**
+     * Override DB environment variables before the app boots.
+     * Uses putenv() so that when Laravel reads the .env.testing config,
+     * it picks up the 3308 connection details. This runs before parent::setUp()
+     * which boots the app and runs RefreshDatabase.
+     *
+     * All other test classes are unaffected — putenv() changes are process-wide
+     * but are restored in tearDown() via the saved originals.
+     *
+     * IAM-PROV-013: Isolated MySQL 3308 provisioning instance.
+     */
+    private array $originalEnv = [];
+
+    protected function setUp(): void
+    {
+        $envFile = dirname(__DIR__, 3) . '/.env.testing.prov';
+
+        if (file_exists($envFile)) {
+            $lines = file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+            $env   = [];
+            foreach ($lines as $line) {
+                if (str_contains($line, '=')) {
+                    [$key, $val] = explode('=', $line, 2);
+                    $env[trim($key)] = trim($val);
+                }
+            }
+
+            // Save originals and override DB env vars before the app boots.
+            // Override both mysql (DB_*) and tenant (TENANT_DB_*) connections
+            // so that RefreshDatabase runs all migrations on the 3308 instance.
+            $map = [
+                'DB_HOST'          => $env['PROV_DB_HOST']     ?? '127.0.0.1',
+                'DB_PORT'          => $env['PROV_DB_PORT']     ?? '3308',
+                'DB_DATABASE'      => $env['PROV_DB_DATABASE'] ?? 'binaa2_testing',
+                'DB_USERNAME'      => $env['PROV_DB_USERNAME'] ?? 'phpunit_prov_3308',
+                'DB_PASSWORD'      => $env['PROV_DB_PASSWORD'] ?? '',
+                'TENANT_DB_HOST'   => $env['PROV_DB_HOST']     ?? '127.0.0.1',
+                'TENANT_DB_PORT'   => $env['PROV_DB_PORT']     ?? '3308',
+                'TENANT_DB_DATABASE' => $env['PROV_DB_DATABASE'] ?? 'binaa2_testing',
+                'TENANT_DB_USERNAME' => $env['PROV_DB_USERNAME'] ?? 'phpunit_prov_3308',
+                'TENANT_DB_PASSWORD' => $env['PROV_DB_PASSWORD'] ?? '',
+            ];
+
+            foreach ($map as $key => $val) {
+                $this->originalEnv[$key] = getenv($key);
+                putenv("{$key}={$val}");
+                $_ENV[$key]    = $val;
+                $_SERVER[$key] = $val;
+            }
+        }
+
+        // Boot the app — RefreshDatabase will now use the 3308 connection.
+        parent::setUp();
+    }
+
     protected function tearDown(): void
     {
         foreach ($this->createdSchemas as $schema) {
             DB::statement("DROP DATABASE IF EXISTS `{$schema}`");
         }
         parent::tearDown();
+
+        // Restore original env vars so other test classes are unaffected.
+        foreach ($this->originalEnv as $key => $val) {
+            if ($val === false) {
+                putenv($key);
+                unset($_ENV[$key], $_SERVER[$key]);
+            } else {
+                putenv("{$key}={$val}");
+                $_ENV[$key]    = $val;
+                $_SERVER[$key] = $val;
+            }
+        }
+        $this->originalEnv = [];
     }
 
     // ─── Helpers ──────────────────────────────────────────────────────────────

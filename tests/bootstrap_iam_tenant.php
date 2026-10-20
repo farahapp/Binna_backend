@@ -4,13 +4,18 @@
  * bootstrap_iam_tenant.php
  *
  * Reusable test bootstrap helper: provisions the 'auth-smoke' tenant via
- * TenantProvisioner, then orchestrates IAM + Audit migrations on the
- * tenant connection — all within test infrastructure only.
+ * TenantProvisioner, then applies Audit migrations and creates IAM fixtures.
+ *
+ * IAM-PROV-001 UPDATE (2026-10-19):
+ *   TenantProvisioner now applies IAM migrations (users, roles, permissions,
+ *   PATs) automatically as Batch 2 via IamMigrator. This file no longer needs
+ *   to call runIamMigrationsOnTenantConnection() for IAM tables — they are
+ *   already present after provisioner->provision().
+ *   runIamMigrationsOnTenantConnection() is retained for Audit migrations only.
  *
  * CONSTRAINTS:
  *  - Does NOT modify production code, TenantProvisioner, auth/Sanctum, or business logic.
  *  - Does NOT print or persist passwords/tokens in production config.
- *  - IAM migrations are applied only on the tenant connection (test-only).
  *  - Cleanup is safe: removes only test-created rows by slug.
  *
  * Usage: require this file from a test setUp() or a standalone script.
@@ -20,6 +25,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../vendor/autoload.php';
 
+use App\Foundation\IamMigrator;
 use App\Foundation\TenantProvisioner;
 use App\IAM\Permission;
 use App\IAM\Role;
@@ -65,8 +71,15 @@ function bootstrapAuthSmokeTenant(string $password): array
 
     $existingTenant = \App\Foundation\Tenant::where('slug', SMOKE_SLUG)->first();
     if ($existingTenant) {
+        // IAM-PROV-002: Tenant exists (cleanup failed or schema pre-dates IAM-PROV-001).
+        // TenantProvisioner was NOT called, so IamMigrator was NOT called either.
+        // Apply IamMigrator now to guarantee IAM tables exist before proceeding.
+        // IamMigrator is idempotent — safe to call even if tables already exist.
         $tenant = $existingTenant;
+        $iamMigrator = $app->make(IamMigrator::class);
+        $iamMigrator->run($tenant);
     } else {
+        // Normal path: TenantProvisioner calls IamMigrator internally (IAM-PROV-001).
         $tenant = $provisioner->provision(SMOKE_SLUG, 'Auth Smoke Test Tenant');
     }
 
@@ -172,9 +185,14 @@ function switchTenantConnection(string $schemaName): void
 }
 
 /**
- * Run IAM and Audit migrations on the current 'tenant' connection.
+ * Run Audit migrations on the current 'tenant' connection.
  * Uses Laravel's Migrator directly — test infrastructure only.
  * Creates the migrations tracking table if it doesn't exist.
+ *
+ * IAM-PROV-001 (2026-10-19): IAM migrations (users, roles, permissions, PATs)
+ * are now applied automatically by TenantProvisioner via IamMigrator (Batch 2).
+ * This function no longer runs migrations/iam — doing so would be redundant
+ * and would cause "table already exists" errors. Only Audit migrations remain.
  */
 function runIamMigrationsOnTenantConnection(): void
 {
@@ -193,10 +211,12 @@ function runIamMigrationsOnTenantConnection(): void
     $migrator = app('migrator');
     $migrator->setConnection('tenant');
 
-    // Run IAM migrations (users, roles, permissions, pivot tables, PATs).
-    $migrator->run(database_path('migrations/iam'));
+    // IAM migrations are now applied by IamMigrator inside TenantProvisioner.
+    // Running them here again would cause "table already exists" errors.
+    // Retained as a comment for historical context — DO NOT uncomment.
+    // $migrator->run(database_path('migrations/iam'));
 
-    // Run Audit migrations (audit_entries).
+    // Run Audit migrations (audit_entries) — still required here.
     $migrator->run(database_path('migrations/audit'));
 
     // CRITICAL: Reset the migrator connection back to the default (mysql/shared)
