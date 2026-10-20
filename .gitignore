@@ -99,6 +99,7 @@ yarn-error.log
 # --- .env.testing (contains APP_KEY and DB credentials) ---
 .env.testing
 .env.testing.bak
+.env.testing.prov
 
 # --- BUG-B10 local diagnostic scripts (root level) ---
 /b10_accounting_listener_test.php
