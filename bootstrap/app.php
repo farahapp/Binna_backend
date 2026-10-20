@@ -26,9 +26,14 @@ return Application::configure(basePath: dirname(__DIR__))
 
         // Register the X-Tenant middleware as a named alias.
         // Apply it selectively to API route groups — not globally.
+        // SESSION 27D-6: register Sanctum ability middleware aliases.
+        // 'abilities' checks ALL listed abilities (AND logic).
+        // 'ability'   checks ANY listed ability  (OR logic).
         $middleware->alias([
             'tenant'        => ResolveTenantContext::class,
             'tenant.schema' => SwitchToTenantSchema::class,
+            'abilities'     => \Laravel\Sanctum\Http\Middleware\CheckAbilities::class,
+            'ability'       => \Laravel\Sanctum\Http\Middleware\CheckForAnyAbility::class,
         ]);
 
         // Middleware priority fix (M4 — HB-1):

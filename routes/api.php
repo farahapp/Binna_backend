@@ -217,12 +217,21 @@ Route::middleware(['tenant', 'tenant.schema', 'auth:sanctum'])->group(function (
             ->name('progress');
 
         // Activity Operations
+        // SESSION 27D-6: ability enforcement on activity routes.
+        // projects:read covers GET project/status/team/can-close/list/parties/daily-reports.
+        // projects:activities:create covers POST /{id}/activities.
+        // projects:activities:update-status covers PATCH /activities/{id}/status.
+        // SPA cookie auth uses auth:sanctum session guard — tokenCan() always returns true
+        // for session-authenticated users (no PAT abilities to check), so SPA is unaffected.
+        // Existing wildcard '*' PATs also satisfy tokenCan() — no breakage.
         Route::post('/{id}/activities', [ProjectsController::class, 'addActivity'])
-            ->name('activities.add');
+            ->name('activities.add')
+            ->middleware('abilities:projects:activities:create');
         // Activity Status Update — API-GAP-M2-01
         // Lifecycle: pending → in_progress → completed / cancelled
         Route::patch('/activities/{activityId}/status', [ProjectsController::class, 'updateActivityStatus'])
-            ->name('activities.update-status');
+            ->name('activities.update-status')
+            ->middleware('abilities:projects:activities:update-status');
 
         // Daily Report Operations
         Route::get('/{id}/daily-reports', [ProjectsController::class, 'listDailyReports'])

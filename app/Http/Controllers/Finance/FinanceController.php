@@ -277,7 +277,7 @@ class FinanceController extends Controller
     {
         try {
             $invoice = $this->financeService->getInvoice($id);
-            return response()->json($invoice->load('items'));
+            return response()->json($invoice->load(['items', 'receivable']));
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException) {
             return response()->json(['error' => 'Invoice not found.'], Response::HTTP_NOT_FOUND);
         }
