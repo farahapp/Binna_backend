@@ -40,6 +40,16 @@ use Illuminate\Support\Facades\Route;
 |
 */
 
+// ─── Health check — no auth, no tenant middleware ─────────────────────────────
+// Required by Hangar (and Railway) healthcheckPath = /api/health
+Route::get('/health', function () {
+    return response()->json([
+        'status' => 'ok',
+        'service' => 'BINAA2 API',
+        'timestamp' => now()->toIso8601String(),
+    ], 200);
+})->name('health');
+
 // ─── Public: Login only ───────────────────────────────────────────────────────
 Route::middleware(['tenant', 'tenant.schema'])->group(function () {
 

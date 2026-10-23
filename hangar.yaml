@@ -1,0 +1,32 @@
+# BINAA2 — Hangar deployment manifest
+# https://tryhangar.io/docs/hangar-yaml
+
+name: binna-backend
+
+services:
+  - name: web
+    source:
+      type: git
+      branch: master
+    build:
+      type: nixpacks
+    deploy:
+      startCommand: "php artisan serve --host=0.0.0.0 --port=${PORT:-3000}"
+      port: 3000
+      healthcheckPath: /api/health
+      healthcheckTimeout: 120
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: APP_DEBUG
+        value: "false"
+      - key: DB_CONNECTION
+        value: mysql
+      - key: QUEUE_CONNECTION
+        value: database
+      - key: LOG_CHANNEL
+        value: stderr
+      - key: LOG_LEVEL
+        value: error
+      # APP_KEY, DB_HOST, DB_PORT, DB_DATABASE, DB_USERNAME, DB_PASSWORD
+      # must be set manually in Hangar dashboard (secrets — not stored here)
