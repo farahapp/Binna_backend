@@ -1,5 +1,10 @@
 # BINAA2 — Hangar deployment manifest
 # https://tryhangar.io/docs/hangar-yaml
+#
+# FIX(2026-10-23): Added APP_NAME as explicit env var to prevent Hangar from
+# using APP_KEY value in Docker image reference construction.
+# Root cause: APP_KEY contains ':' which breaks Docker image:tag parsing when
+# injected into the image name slug (invalid reference format error).
 
 name: binna-backend
 
@@ -16,6 +21,8 @@ services:
       healthcheckPath: /api/health
       healthcheckTimeout: 120
     envVars:
+      - key: APP_NAME
+        value: BINAA2
       - key: APP_ENV
         value: production
       - key: APP_DEBUG
