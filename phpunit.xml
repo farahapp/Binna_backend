@@ -27,14 +27,21 @@
         <env name="DB_PORT" value="3307"/>
         <env name="DB_DATABASE" value="binaa2_testing"/>
         <env name="DB_USERNAME" value="phpunit_3307"/>
+        <env name="DB_PASSWORD" value="U1&lt;tI!V9P76.S({./AXF"/>
         <env name="TENANT_DB_DATABASE" value="binaa2_testing"/>
         <env name="TENANT_DB_HOST" value="127.0.0.1"/>
         <env name="TENANT_DB_PORT" value="3307"/>
         <env name="TENANT_DB_USERNAME" value="phpunit_3307"/>
+        <env name="TENANT_DB_PASSWORD" value="U1&lt;tI!V9P76.S({./AXF"/>
         <env name="MAIL_MAILER" value="array"/>
         <env name="PULSE_ENABLED" value="false"/>
         <env name="QUEUE_CONNECTION" value="sync"/>
         <env name="SESSION_DRIVER" value="array"/>
         <env name="TELESCOPE_ENABLED" value="false"/>
+        <env name="PROVISIONING_DB_HOST"     value="127.0.0.1"/>
+        <env name="PROVISIONING_DB_PORT"     value="3308"/>
+        <env name="PROVISIONING_DB_DATABASE" value="binaa2_testing"/>
+        <env name="PROVISIONING_DB_USERNAME" value="phpunit_prov_3308"/>
+        <env name="PROVISIONING_DB_PASSWORD" value="x{wM8V4mHp4S&amp;mr&amp;22m2]dN_"/>
     </php>
 </phpunit>

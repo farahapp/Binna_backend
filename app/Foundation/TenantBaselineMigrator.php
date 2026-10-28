@@ -52,7 +52,7 @@ class TenantBaselineMigrator
     {
         $connectionName = 'tenant_baseline_'.$schemaName;
 
-        $base = Config::get('database.connections.mysql');
+        $base = Config::get('database.connections.mysql_provisioning');
         Config::set("database.connections.{$connectionName}", array_merge($base, [
             'database' => $schemaName,
         ]));

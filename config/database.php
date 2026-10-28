@@ -2,6 +2,34 @@
 
 use Illuminate\Support\Str;
 
+/*
+ * PDO MySQL SSL-CA constant compatibility shim.
+ *
+ * PHP 8.4 introduced the namespaced Pdo\Mysql::ATTR_SSL_CA constant and
+ * deprecated the top-level PDO::MYSQL_ATTR_SSL_CA alias.
+ * PHP 8.5 removes the deprecated alias entirely, causing a fatal error.
+ *
+ * This shim resolves the correct constant at config-load time so the file
+ * works on PHP 8.3, 8.4, and 8.5+ without touching any other settings.
+ */
+if (! defined('BINAA2_PDO_MYSQL_ATTR_SSL_CA')) {
+    // Use if/else — NOT a ternary — so that PDO::MYSQL_ATTR_SSL_CA is never
+    // referenced (not even in a dead branch) on PHP 8.5, where the constant
+    // was removed entirely and causes a fatal error at parse time in a ternary.
+    //
+    // Branch logic:
+    //   PHP ≥ 8.4 + pdo_mysql loaded  → \Pdo\Mysql::ATTR_SSL_CA  (namespaced, no deprecation)
+    //   PHP ≤ 8.3 + pdo_mysql loaded  → PDO::MYSQL_ATTR_SSL_CA   (legacy alias, safe on ≤8.3)
+    //   pdo_mysql NOT loaded           → placeholder 0 (options array is [] anyway via extension_loaded check)
+    if (extension_loaded('pdo_mysql') && class_exists(\Pdo\Mysql::class)) {
+        define('BINAA2_PDO_MYSQL_ATTR_SSL_CA', \Pdo\Mysql::ATTR_SSL_CA);
+    } elseif (extension_loaded('pdo_mysql')) {
+        define('BINAA2_PDO_MYSQL_ATTR_SSL_CA', PDO::MYSQL_ATTR_SSL_CA); // PHP ≤ 8.3 only
+    } else {
+        define('BINAA2_PDO_MYSQL_ATTR_SSL_CA', 0); // pdo_mysql absent; options array is [] anyway
+    }
+}
+
 return [
 
     /*
@@ -58,7 +86,7 @@ return [
             'strict' => true,
             'engine' => null,
             'options' => extension_loaded('pdo_mysql') ? array_filter([
-                PDO::MYSQL_ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
+                BINAA2_PDO_MYSQL_ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
             ]) : [],
         ],
 
@@ -90,7 +118,46 @@ return [
             'strict' => true,
             'engine' => null,
             'options' => extension_loaded('pdo_mysql') ? array_filter([
-                PDO::MYSQL_ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
+                BINAA2_PDO_MYSQL_ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
+            ]) : [],
+        ],
+
+        /*
+         * DEC-MYSQL-001 — Provisioning-only connection.
+         *
+         * This connection is used EXCLUSIVELY by TenantProvisioner (via CLI) to:
+         *   - CREATE DATABASE for new tenant schemas
+         *   - GRANT exact per-schema privileges to the runtime user
+         *
+         * It MUST NOT be used by the application runtime (HTTP requests, jobs, queues).
+         * The provisioning user requires: CREATE, GRANT OPTION on *.* (or specific schemas).
+         * The runtime user (DB_USERNAME) must NOT have GRANT OPTION or DDL privileges.
+         *
+         * Required env vars (independent from the runtime connection):
+         *   PROVISIONING_DB_URL      (optional; no runtime fallback)
+         *   PROVISIONING_DB_HOST     (defaults to 127.0.0.1)
+         *   PROVISIONING_DB_PORT     (defaults to 3306)
+         *   PROVISIONING_DB_DATABASE (NO default — must be set explicitly)
+         *   PROVISIONING_DB_USERNAME (NO default — must be set explicitly)
+         *   PROVISIONING_DB_PASSWORD (NO default — must be set explicitly)
+         */
+        'mysql_provisioning' => [
+            'driver'    => 'mysql',
+            'url'       => env('PROVISIONING_DB_URL'),
+            'host'      => env('PROVISIONING_DB_HOST', '127.0.0.1'),
+            'port'      => env('PROVISIONING_DB_PORT', '3306'),
+            'database'  => env('PROVISIONING_DB_DATABASE'),
+            'username'  => env('PROVISIONING_DB_USERNAME'),
+            'password'  => env('PROVISIONING_DB_PASSWORD'),
+            'unix_socket' => env('PROVISIONING_DB_SOCKET', ''),
+            'charset'   => env('PROVISIONING_DB_CHARSET', 'utf8mb4'),
+            'collation' => env('PROVISIONING_DB_COLLATION', 'utf8mb4_unicode_ci'),
+            'prefix'    => '',
+            'prefix_indexes' => true,
+            'strict'    => true,
+            'engine'    => null,
+            'options'   => extension_loaded('pdo_mysql') ? array_filter([
+                BINAA2_PDO_MYSQL_ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
             ]) : [],
         ],
 
@@ -110,7 +177,7 @@ return [
             'strict' => true,
             'engine' => null,
             'options' => extension_loaded('pdo_mysql') ? array_filter([
-                PDO::MYSQL_ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
+                BINAA2_PDO_MYSQL_ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
             ]) : [],
         ],
 

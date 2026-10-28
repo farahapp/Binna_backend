@@ -76,7 +76,7 @@ class IamMigrator
     {
         $connectionName = 'tenant_iam_' . $schemaName;
 
-        $base = Config::get('database.connections.mysql');
+        $base = Config::get('database.connections.mysql_provisioning');
         Config::set("database.connections.{$connectionName}", array_merge($base, [
             'database' => $schemaName,
         ]));
@@ -125,6 +125,20 @@ class IamMigrator
             });
         }
 
+        // ── tenant_admin role seed ────────────────────────────────────────────
+        // Insert the tenant_admin role if it does not already exist.
+        // This is idempotent: insertOrIgnore is a no-op on re-provisioning.
+        // The role is created with no users assigned — assignment requires an
+        // explicit authorised call to the IAM API (iam:roles:assign_permission).
+        // No user is granted this role here; provisioning only creates the role
+        // definition so it is available for the first authorised assignment.
+        DB::connection($connectionName)->table('roles')->insertOrIgnore([
+            'name'       => 'tenant_admin',
+            'guard_name' => 'api',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
         // ── model_has_roles ───────────────────────────────────────────────────
         if (! $schema->hasTable('model_has_roles')) {
             $schema->create('model_has_roles', function (Blueprint $table) {
@@ -155,22 +169,19 @@ class IamMigrator
         }
 
         // ── personal_access_tokens ────────────────────────────────────────────
-        // Drop Sanctum's auto-published version if it exists (wrong morphs type).
-        // Recreate with uuidMorphs to match UUID v4 user IDs (TODEC-003).
-        if ($schema->hasTable('personal_access_tokens')) {
-            $schema->dropIfExists('personal_access_tokens');
+        // Preserve an existing table; provisioning must remain non-destructive.
+        if (! $schema->hasTable('personal_access_tokens')) {
+            $schema->create('personal_access_tokens', function (Blueprint $table) {
+                $table->id();
+                $table->uuidMorphs('tokenable');
+                $table->string('name');
+                $table->string('token', 64)->unique();
+                $table->text('abilities')->nullable();
+                $table->timestamp('last_used_at')->nullable();
+                $table->timestamp('expires_at')->nullable();
+                $table->timestamps();
+            });
         }
-
-        $schema->create('personal_access_tokens', function (Blueprint $table) {
-            $table->id();
-            $table->uuidMorphs('tokenable');
-            $table->string('name');
-            $table->string('token', 64)->unique();
-            $table->text('abilities')->nullable();
-            $table->timestamp('last_used_at')->nullable();
-            $table->timestamp('expires_at')->nullable();
-            $table->timestamps();
-        });
     }
 
     /**
