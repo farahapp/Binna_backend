@@ -28,7 +28,10 @@ use App\Http\Controllers\Network\BidController;
 use App\Http\Controllers\Network\EvaluationController;
 use App\Http\Controllers\Network\AwardController;
 use App\Http\Controllers\Network\NetworkProfileVerificationController;
+use App\Http\Controllers\Platform\PlatformAuthController;
+use App\Http\Controllers\Platform\PlatformTenantController;
 use Illuminate\Support\Facades\Route;
+use Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful;
 
 /*
 |--------------------------------------------------------------------------
@@ -50,6 +53,53 @@ Route::get('/health', function () {
     ], 200);
 })->name('health');
 
+// ─── Platform Admin: No X-Tenant required — shared schema only ───────────────
+// Platform operators authenticate against platform_users (shared mysql schema).
+// These routes are entirely separate from tenant routes.
+// Pipeline: [no tenant middleware] → auth:sanctum (platform guard) → platform.operator → Controller
+//
+// FIX (CSRF-419): EnsureFrontendRequestsAreStateful is prepended to the entire
+// 'api' group in bootstrap/app.php to support SPA Cookie auth for tenant routes.
+// Platform routes use Bearer PAT (stateless) — they must NOT go through the
+// stateful pipeline, which would trigger ValidateCsrfToken for browser requests
+// from stateful domains (localhost:3001) and return HTTP 419.
+// withoutMiddleware() removes it from this group only; tenant routes are unaffected.
+
+// Public: Platform operator login (no auth required)
+Route::prefix('platform')
+    ->name('platform.')
+    ->withoutMiddleware(EnsureFrontendRequestsAreStateful::class)
+    ->group(function () {
+
+    Route::post('/auth/login', [PlatformAuthController::class, 'login'])
+        ->name('auth.login');
+
+    // Protected: require authenticated platform operator
+    // auth:sanctum resolves the bearer token against all registered tokenable models.
+    // platform.operator then verifies the resolved user is a PlatformUser (not a tenant user).
+    Route::middleware(['auth:sanctum,platform', 'platform.operator'])->group(function () {
+
+        Route::post('/auth/logout', [PlatformAuthController::class, 'logout'])
+            ->name('auth.logout');
+
+        Route::get('/auth/me', [PlatformAuthController::class, 'me'])
+            ->name('auth.me');
+
+        // Tenant management
+        Route::get('/tenants', [PlatformTenantController::class, 'index'])
+            ->name('tenants.index');
+
+        Route::get('/tenants/{id}', [PlatformTenantController::class, 'show'])
+            ->name('tenants.show');
+
+        Route::patch('/tenants/{id}/suspend', [PlatformTenantController::class, 'suspend'])
+            ->name('tenants.suspend');
+
+        Route::patch('/tenants/{id}/activate', [PlatformTenantController::class, 'activate'])
+            ->name('tenants.activate');
+    });
+});
+
 // ─── Public: Login only ───────────────────────────────────────────────────────
 Route::middleware(['tenant', 'tenant.schema'])->group(function () {
 
@@ -65,7 +115,7 @@ Route::middleware(['tenant', 'tenant.schema'])->group(function () {
 });
 
 // ─── Protected: all routes require tenant context + Sanctum auth ──────────────
-Route::middleware(['tenant', 'tenant.schema', 'auth:sanctum'])->group(function () {
+Route::middleware(['tenant', 'tenant.schema', 'auth:sanctum', 'tenant.membership'])->group(function () {
 
     // Authentication — Logout PAT (HB-1)
     Route::post('/auth/logout', [AuthController::class, 'logout'])
