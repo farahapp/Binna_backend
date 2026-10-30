@@ -30,10 +30,12 @@ return Application::configure(basePath: dirname(__DIR__))
         // 'abilities' checks ALL listed abilities (AND logic).
         // 'ability'   checks ANY listed ability  (OR logic).
         $middleware->alias([
-            'tenant'        => ResolveTenantContext::class,
-            'tenant.schema' => SwitchToTenantSchema::class,
-            'abilities'     => \Laravel\Sanctum\Http\Middleware\CheckAbilities::class,
-            'ability'       => \Laravel\Sanctum\Http\Middleware\CheckForAnyAbility::class,
+            'tenant'            => ResolveTenantContext::class,
+            'tenant.schema'     => SwitchToTenantSchema::class,
+            'abilities'         => \Laravel\Sanctum\Http\Middleware\CheckAbilities::class,
+            'ability'           => \Laravel\Sanctum\Http\Middleware\CheckForAnyAbility::class,
+            'tenant.membership' => \App\Http\Middleware\VerifyTenantMembership::class,
+            'platform.operator' => \App\Http\Middleware\RequirePlatformOperator::class,
         ]);
 
         // Middleware priority fix (M4 — HB-1):
