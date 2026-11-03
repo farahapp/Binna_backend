@@ -209,8 +209,31 @@ class SpaLoginRegressionTest extends TestCase
             Artisan::call('migrate', ['--path' => 'database/migrations/shared', '--force' => true]);
         }
 
-        // Insert tenant record (idempotent).
-        DB::connection('mysql')->table('tenants')->insertOrIgnore([
+        // Step 1: Remove any row this Suite previously inserted (by slug).
+        DB::connection('mysql')->table('tenants')
+            ->where('slug', self::SLUG)
+            ->delete();
+
+        // Step 2: Guard — detect a foreign stale row sharing our schema_name.
+        // insertOrIgnore was previously used here but silently skipped the insert
+        // when schema_name was already taken, causing ResolveTenantContext to
+        // return 404 for all SPA login tests (FIX-A-CODE).
+        $conflict = DB::connection('mysql')->table('tenants')
+            ->where('schema_name', self::SCHEMA)
+            ->where('slug', '!=', self::SLUG)
+            ->first();
+
+        if ($conflict !== null) {
+            $this->fail(
+                "FIX-A-CODE guard: schema_name='" . self::SCHEMA . "' is already " .
+                "claimed by slug='{$conflict->slug}' (id={$conflict->id}). " .
+                "A previous test run left a stale row. " .
+                "Run: DELETE FROM tenants WHERE id={$conflict->id} AND slug='{$conflict->slug}';"
+            );
+        }
+
+        // Step 3: Insert our own row.
+        DB::connection('mysql')->table('tenants')->insert([
             'slug'        => self::SLUG,
             'name'        => 'SPA Regression Tenant',
             'schema_name' => self::SCHEMA,

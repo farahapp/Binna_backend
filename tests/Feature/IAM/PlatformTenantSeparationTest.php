@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 /**
@@ -95,7 +96,7 @@ class PlatformTenantSeparationTest extends TestCase
     // SEP-07 â€” PlatformUser model uses 'mysql' connection, never 'tenant'
     // =========================================================================
 
-    /** @test */
+    #[Test]
     public function platform_user_model_uses_shared_mysql_connection(): void
     {
         $user = new PlatformUser();
@@ -107,7 +108,7 @@ class PlatformTenantSeparationTest extends TestCase
         );
     }
 
-    /** @test */
+    #[Test]
     public function platform_user_has_no_tenant_id_column(): void
     {
         $columns = Schema::connection('mysql')->getColumnListing('platform_users');
@@ -125,7 +126,7 @@ class PlatformTenantSeparationTest extends TestCase
     // SEP-08 â€” Inactive PlatformUser is rejected (403)
     // =========================================================================
 
-    /** @test */
+    #[Test]
     public function inactive_platform_user_is_rejected_by_require_platform_operator(): void
     {
         $middleware = new \App\Http\Middleware\RequirePlatformOperator();
@@ -150,7 +151,7 @@ class PlatformTenantSeparationTest extends TestCase
     // SEP-01 â€” Tenant user is rejected by RequirePlatformOperator (403)
     // =========================================================================
 
-    /** @test */
+    #[Test]
     public function tenant_user_is_rejected_by_require_platform_operator_middleware(): void
     {
         $middleware = new \App\Http\Middleware\RequirePlatformOperator();
@@ -172,7 +173,7 @@ class PlatformTenantSeparationTest extends TestCase
     // SEP-09 â€” Unauthenticated request returns 401
     // =========================================================================
 
-    /** @test */
+    #[Test]
     public function unauthenticated_request_to_require_platform_operator_returns_401(): void
     {
         $middleware = new \App\Http\Middleware\RequirePlatformOperator();
@@ -189,7 +190,7 @@ class PlatformTenantSeparationTest extends TestCase
     // SEP-03 â€” Tenant user WITHOUT tenant_admin cannot assign permissions (403)
     // =========================================================================
 
-    /** @test */
+    #[Test]
     public function tenant_user_without_tenant_admin_cannot_assign_permissions(): void
     {
         $user = $this->makeTenantUser();
@@ -217,7 +218,7 @@ class PlatformTenantSeparationTest extends TestCase
     // SEP-04 â€” Tenant user WITH tenant_admin CAN assign permissions (200)
     // =========================================================================
 
-    /** @test */
+    #[Test]
     public function tenant_admin_user_can_assign_permissions(): void
     {
         $user = $this->makeTenantUser();
@@ -251,7 +252,7 @@ class PlatformTenantSeparationTest extends TestCase
     // SEP-05 â€” Tenant user WITH iam:roles:assign_permission CAN assign (200)
     // =========================================================================
 
-    /** @test */
+    #[Test]
     public function user_with_assign_permission_capability_can_assign_permissions(): void
     {
         $user = $this->makeTenantUser();
@@ -280,7 +281,7 @@ class PlatformTenantSeparationTest extends TestCase
     // SEP-10 â€” Tenant user cannot self-escalate to tenant_admin
     // =========================================================================
 
-    /** @test */
+    #[Test]
     public function unprivileged_user_cannot_self_escalate_to_tenant_admin(): void
     {
         // User A has no roles.
@@ -324,7 +325,7 @@ class PlatformTenantSeparationTest extends TestCase
     // SEP-06 â€” Cross-tenant: user from tenant A cannot access tenant B
     // =========================================================================
 
-    /** @test */
+    #[Test]
     public function user_token_from_tenant_a_is_rejected_when_accessing_tenant_b(): void
     {
         // Create user in the test tenant (sep-test-tenant â†’ binaa2_testing).
@@ -350,7 +351,7 @@ class PlatformTenantSeparationTest extends TestCase
     // SEP-02 â€” VerifyTenantMembership: user not in tenant schema is rejected
     // =========================================================================
 
-    /** @test */
+    #[Test]
     public function verify_tenant_membership_rejects_user_not_in_tenant_schema(): void
     {
         $middleware = new \App\Http\Middleware\VerifyTenantMembership();
@@ -384,7 +385,7 @@ class PlatformTenantSeparationTest extends TestCase
     // SEP-11 — Unauthenticated HTTP request to IAM roles endpoint returns 401
     // =========================================================================
 
-    /** @test */
+    #[Test]
     public function unauthenticated_request_to_iam_roles_endpoint_returns_401_without_fatal_error(): void
     {
         // Send POST /api/iam/roles/{id}/permissions/{id} with NO Authorization header.
@@ -435,7 +436,31 @@ class PlatformTenantSeparationTest extends TestCase
 
     private function ensureTenantRecord(): void
     {
-        DB::connection('mysql')->table('tenants')->insertOrIgnore([
+        // Step 1: Remove any row this Suite previously inserted (by slug).
+        DB::connection('mysql')->table('tenants')
+            ->where('slug', $this->tenantSlug)
+            ->delete();
+
+        // Step 2: Guard — detect a foreign stale row that shares our schema_name
+        // but belongs to a different slug (left by a crashed previous run of
+        // another Suite). Deleting it here would be unsafe (we don't own it).
+        // Fail fast with a clear message so the problem is visible immediately.
+        $conflict = DB::connection('mysql')->table('tenants')
+            ->where('schema_name', $this->tenantSchema)
+            ->whereNot('slug', $this->tenantSlug)
+            ->first();
+
+        if ($conflict !== null) {
+            $this->fail(
+                "FIX-A-CODE guard: schema_name='{$this->tenantSchema}' is already " .
+                "claimed by slug='{$conflict->slug}' (id={$conflict->id}). " .
+                "A previous test run left a stale row. " .
+                "Run: DELETE FROM tenants WHERE id={$conflict->id} AND slug='{$conflict->slug}';"
+            );
+        }
+
+        // Step 3: Insert our own row.
+        DB::connection('mysql')->table('tenants')->insert([
             'slug'        => $this->tenantSlug,
             'name'        => 'Sep Test Tenant',
             'schema_name' => $this->tenantSchema,

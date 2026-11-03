@@ -229,6 +229,222 @@ function runIamMigrationsOnTenantConnection(): void
 }
 
 /**
+ * Tenant Test Harness — unique-per-suite provisioning.
+ *
+ * FIX: ISOL-001 — Test Data Isolation.
+ *
+ * Provisions a fresh Tenant with a slug that is unique to this test run,
+ * preventing UniqueConstraintViolationException when multiple suites share
+ * the same process or when a previous run's cleanup failed.
+ *
+ * Slug format: "ts-<suffix>" where <suffix> is the first 8 hex chars of a
+ * random 4-byte token — short enough to fit MySQL's 64-char identifier limit
+ * after the "binaa2_tenant_" prefix, unique enough for test isolation.
+ *
+ * Usage:
+ *   $harness = TenantTestHarness::provision($password);
+ *   // ... run tests using $harness->slug, $harness->schemaName, $harness->user ...
+ *   $harness->cleanup();
+ *
+ * The harness does NOT use global defines — each instance carries its own
+ * slug/email/role/permission names, so multiple suites can run in parallel
+ * without name collisions.
+ */
+class TenantTestHarness
+{
+    public readonly string $slug;
+    public readonly string $email;
+    public readonly string $roleName;
+    public readonly string $permissionName;
+    public readonly string $schemaName;
+
+    /** @var \App\Foundation\Tenant */
+    public readonly object $tenant;
+
+    /** @var \App\IAM\User */
+    public readonly object $user;
+
+    /** @var \App\IAM\Role */
+    public readonly object $role;
+
+    /** @var \App\IAM\Permission */
+    public readonly object $permission;
+
+    private function __construct(string $suffix)
+    {
+        $this->slug           = 'ts-' . $suffix;
+        $this->email          = 'ts-' . $suffix . '@binaa.test';
+        $this->roleName       = 'ts-role-' . $suffix;
+        $this->permissionName = 'ts.view.' . $suffix;
+    }
+
+    /**
+     * Provision a unique tenant, run IAM+Audit migrations, create fixtures.
+     * Returns a fully-bootstrapped harness instance.
+     *
+     * @param  string  $password  Plaintext password for the test user (not stored).
+     * @param  string|null  $suffix  Optional fixed suffix (for deterministic tests).
+     *                               Defaults to 8 random hex chars.
+     */
+    public static function provision(string $password, ?string $suffix = null): self
+    {
+        $suffix  = $suffix ?? bin2hex(random_bytes(4));
+        $harness = new self($suffix);
+
+        $app = app();
+
+        // Clean up any leftover from a previous run with the same suffix.
+        $harness->cleanup();
+
+        /** @var \App\Foundation\TenantProvisioner $provisioner */
+        $provisioner = $app->make(\App\Foundation\TenantProvisioner::class);
+
+        $existing = \App\Foundation\Tenant::where('slug', $harness->slug)->first();
+        if ($existing) {
+            // Reuse existing tenant — apply IamMigrator idempotently.
+            $harness->setTenant($existing);
+            $iamMigrator = $app->make(\App\Foundation\IamMigrator::class);
+            $iamMigrator->run($existing);
+        } else {
+            $tenant = $provisioner->provision($harness->slug, 'Test Suite Tenant ' . $suffix);
+            $harness->setTenant($tenant);
+        }
+
+        assert($harness->tenant->status === 'active', "Harness tenant [{$harness->slug}] must be active");
+
+        // Switch tenant connection to the provisioned schema.
+        // FIX: CONN-001 — use mysql connection as base (preserves port 3307),
+        // NOT mysql_provisioning (which uses port 3308).
+        switchTenantConnection($harness->schemaName);
+
+        // NOTE: We do NOT call runIamMigrationsOnTenantConnection() here.
+        // TenantProvisioner already applies Audit migrations via DomainMigrator
+        // (Batch 3, domain 'audit'). Calling the Migrator again would attempt to
+        // re-create audit_entries because the tenant schema's own 'migrations'
+        // tracking table does not record DomainMigrator's work (DomainMigrator
+        // records in the shared tenant_migrations table, not the tenant's migrations
+        // table). This would throw SQLSTATE 42S01 on the second run.
+        // FIX: ISOL-002 — skip redundant Audit migration in TenantTestHarness.
+
+        // Verify required tables.
+        $required = ['users', 'roles', 'permissions', 'model_has_roles',
+                     'role_has_permissions', 'personal_access_tokens', 'audit_entries'];
+        foreach ($required as $table) {
+            assert(
+                Schema::connection('tenant')->hasTable($table),
+                "Required table [{$table}] missing from harness schema [{$harness->schemaName}]"
+            );
+        }
+
+        // Create User (idempotent).
+        $existingUser = User::on('tenant')->where('email', $harness->email)->first();
+        if ($existingUser) {
+            $existingUser->password = Hash::make($password);
+            $existingUser->save();
+            $user = $existingUser;
+        } else {
+            $user = new User();
+            $user->setConnection('tenant');
+            $user->name     = 'Test Suite User ' . $suffix;
+            $user->email    = $harness->email;
+            $user->password = Hash::make($password);
+            $user->save();
+        }
+
+        assert($user->id !== null, 'Harness user must have an ID after save');
+        assert(Hash::check($password, $user->password), 'Harness password hash must verify');
+
+        // Create Role + Permission (idempotent).
+        $permission = Permission::on('tenant')->firstOrCreate(
+            ['name' => $harness->permissionName],
+            ['guard_name' => 'api']
+        );
+        $role = Role::on('tenant')->firstOrCreate(
+            ['name' => $harness->roleName],
+            ['guard_name' => 'api']
+        );
+
+        if (! $role->permissions()->where('name', $harness->permissionName)->exists()) {
+            $role->givePermission($permission);
+        }
+        if (! $user->hasRole($harness->roleName)) {
+            $user->assignRole($role);
+        }
+
+        assert($user->hasRole($harness->roleName), 'Harness user must have the test role');
+
+        $harness->user       = $user;
+        $harness->role       = $role;
+        $harness->permission = $permission;
+
+        return $harness;
+    }
+
+    /**
+     * Clean up all data created by this harness instance.
+     * Safe to call even if provisioning failed partway through.
+     * Only removes rows created by THIS harness (identified by slug/email/role/permission).
+     * Does NOT drop the schema — leaves it for inspection.
+     * Does NOT touch any pre-existing tenant or schema.
+     */
+    public function cleanup(): void
+    {
+        try {
+            $tenant = DB::connection('mysql')
+                ->table('tenants')
+                ->where('slug', $this->slug)
+                ->first();
+
+            if ($tenant) {
+                $schemaName = $tenant->schema_name;
+
+                // Clean IAM data from tenant schema (best-effort).
+                try {
+                    switchTenantConnection($schemaName);
+                    DB::connection('tenant')->table('personal_access_tokens')->delete();
+                    DB::connection('tenant')->table('model_has_roles')->delete();
+                    DB::connection('tenant')->table('role_has_permissions')->delete();
+                    DB::connection('tenant')->table('users')
+                        ->where('email', $this->email)->delete();
+                    DB::connection('tenant')->table('roles')
+                        ->where('name', $this->roleName)->delete();
+                    DB::connection('tenant')->table('permissions')
+                        ->where('name', $this->permissionName)->delete();
+                    DB::connection('tenant')->table('audit_entries')->delete();
+                } catch (\Throwable) {
+                    // Schema may not have IAM tables yet — ignore.
+                }
+
+                // Remove shared-schema records.
+                try {
+                    DB::connection('mysql')
+                        ->table('tenant_migrations')
+                        ->where('tenant_id', $tenant->id)
+                        ->delete();
+                } catch (\Throwable) {
+                    // tenant_migrations may not exist in some contexts — ignore.
+                }
+
+                // CRITICAL: Always delete the tenant row to prevent slug collision.
+                DB::connection('mysql')
+                    ->table('tenants')
+                    ->where('slug', $this->slug)
+                    ->delete();
+            }
+        } catch (\Throwable) {
+            // Cleanup is best-effort.
+        }
+    }
+
+    /** @internal */
+    private function setTenant(object $tenant): void
+    {
+        $this->tenant     = $tenant;
+        $this->schemaName = $tenant->schema_name;
+    }
+}
+
+/**
  * Safe cleanup: removes only test-created rows by slug.
  * Does NOT drop the schema — leaves it for inspection if needed.
  *

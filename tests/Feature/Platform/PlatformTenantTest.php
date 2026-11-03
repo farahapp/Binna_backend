@@ -9,6 +9,7 @@ use App\Foundation\Tenant;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 /**
@@ -41,6 +42,7 @@ class PlatformTenantTest extends TestCase
     {
         parent::setUp();
         $this->ensurePlatformUsersTableExists();
+        $this->ensurePlatformPATTableExists();
         $this->ensureTenantsTableExists();
     }
 
@@ -48,11 +50,11 @@ class PlatformTenantTest extends TestCase
     // PT-01 — Authenticated list returns paginated data
     // =========================================================================
 
-    /** @test */
+    #[Test]
     public function authenticated_operator_can_list_tenants(): void
     {
         $operator = $this->makePlatformUser();
-        $token    = $operator->createToken('platform-api', ['platform:*'])->plainTextToken;
+        $token    = $operator->createPlatformToken('platform-api', ['platform:*'])->plainTextToken;
 
         $this->makeTenant('test-list-' . uniqid(), 'active');
 
@@ -72,7 +74,7 @@ class PlatformTenantTest extends TestCase
     // PT-02 — Unauthenticated list returns 401
     // =========================================================================
 
-    /** @test */
+    #[Test]
     public function unauthenticated_request_to_tenants_returns_401(): void
     {
         $response = $this->getJson('/api/platform/tenants');
@@ -83,11 +85,11 @@ class PlatformTenantTest extends TestCase
     // PT-03 — Status filter works
     // =========================================================================
 
-    /** @test */
+    #[Test]
     public function status_filter_returns_only_matching_tenants(): void
     {
         $operator = $this->makePlatformUser();
-        $token    = $operator->createToken('platform-api', ['platform:*'])->plainTextToken;
+        $token    = $operator->createPlatformToken('platform-api', ['platform:*'])->plainTextToken;
 
         $slug = 'filter-test-' . uniqid();
         $this->makeTenant($slug, 'suspended');
@@ -108,11 +110,11 @@ class PlatformTenantTest extends TestCase
     // PT-04 — Show returns tenant + settings
     // =========================================================================
 
-    /** @test */
+    #[Test]
     public function show_returns_tenant_and_settings(): void
     {
         $operator = $this->makePlatformUser();
-        $token    = $operator->createToken('platform-api', ['platform:*'])->plainTextToken;
+        $token    = $operator->createPlatformToken('platform-api', ['platform:*'])->plainTextToken;
 
         $tenant = $this->makeTenant('show-test-' . uniqid(), 'active');
 
@@ -130,11 +132,11 @@ class PlatformTenantTest extends TestCase
     // PT-05 — Show non-existent tenant returns 404
     // =========================================================================
 
-    /** @test */
+    #[Test]
     public function show_non_existent_tenant_returns_404(): void
     {
         $operator = $this->makePlatformUser();
-        $token    = $operator->createToken('platform-api', ['platform:*'])->plainTextToken;
+        $token    = $operator->createPlatformToken('platform-api', ['platform:*'])->plainTextToken;
 
         $response = $this->getJson('/api/platform/tenants/999999', [
             'Authorization' => 'Bearer ' . $token,
@@ -147,11 +149,11 @@ class PlatformTenantTest extends TestCase
     // PT-06 — Suspend an active tenant
     // =========================================================================
 
-    /** @test */
+    #[Test]
     public function suspend_active_tenant_returns_200_and_updates_status(): void
     {
         $operator = $this->makePlatformUser();
-        $token    = $operator->createToken('platform-api', ['platform:*'])->plainTextToken;
+        $token    = $operator->createPlatformToken('platform-api', ['platform:*'])->plainTextToken;
 
         $tenant = $this->makeTenant('suspend-test-' . uniqid(), 'active');
 
@@ -171,11 +173,11 @@ class PlatformTenantTest extends TestCase
     // PT-07 — Suspend non-active tenant returns 422
     // =========================================================================
 
-    /** @test */
+    #[Test]
     public function suspend_non_active_tenant_returns_422(): void
     {
         $operator = $this->makePlatformUser();
-        $token    = $operator->createToken('platform-api', ['platform:*'])->plainTextToken;
+        $token    = $operator->createPlatformToken('platform-api', ['platform:*'])->plainTextToken;
 
         $tenant = $this->makeTenant('suspend-422-' . uniqid(), 'pending');
 
@@ -190,11 +192,11 @@ class PlatformTenantTest extends TestCase
     // PT-08 — Activate a pending tenant
     // =========================================================================
 
-    /** @test */
+    #[Test]
     public function activate_pending_tenant_returns_200_and_updates_status(): void
     {
         $operator = $this->makePlatformUser();
-        $token    = $operator->createToken('platform-api', ['platform:*'])->plainTextToken;
+        $token    = $operator->createPlatformToken('platform-api', ['platform:*'])->plainTextToken;
 
         $tenant = $this->makeTenant('activate-test-' . uniqid(), 'pending');
 
@@ -213,11 +215,11 @@ class PlatformTenantTest extends TestCase
     // PT-09 — schema_name never returned
     // =========================================================================
 
-    /** @test */
+    #[Test]
     public function schema_name_is_never_returned_in_tenant_responses(): void
     {
         $operator = $this->makePlatformUser();
-        $token    = $operator->createToken('platform-api', ['platform:*'])->plainTextToken;
+        $token    = $operator->createPlatformToken('platform-api', ['platform:*'])->plainTextToken;
 
         $tenant = $this->makeTenant('schema-test-' . uniqid(), 'active');
 
@@ -277,6 +279,24 @@ class PlatformTenantTest extends TestCase
                 $table->string('email')->unique();
                 $table->string('password');
                 $table->boolean('is_active')->default(true);
+                $table->timestamps();
+            });
+        }
+    }
+
+    private function ensurePlatformPATTableExists(): void
+    {
+        if (! Schema::connection('mysql')->hasTable('platform_personal_access_tokens')) {
+            Schema::connection('mysql')->create('platform_personal_access_tokens', function ($table) {
+                $table->id();
+                $table->string('tokenable_type');
+                $table->unsignedBigInteger('tokenable_id');
+                $table->index(['tokenable_type', 'tokenable_id'], 'ppat_tokenable_index');
+                $table->string('name');
+                $table->string('token', 64)->unique();
+                $table->text('abilities')->nullable();
+                $table->timestamp('last_used_at')->nullable();
+                $table->timestamp('expires_at')->nullable();
                 $table->timestamps();
             });
         }

@@ -8,6 +8,7 @@ use App\Foundation\PlatformUser;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 /**
@@ -41,13 +42,14 @@ class PlatformAuthTest extends TestCase
     {
         parent::setUp();
         $this->ensurePlatformUsersTableExists();
+        $this->ensurePlatformPATTableExists();
     }
 
     // =========================================================================
     // PA-01 — Valid login returns token
     // =========================================================================
 
-    /** @test */
+    #[Test]
     public function valid_platform_login_returns_token(): void
     {
         $operator = $this->makePlatformUser();
@@ -68,7 +70,7 @@ class PlatformAuthTest extends TestCase
     // PA-02 — Wrong password returns 422
     // =========================================================================
 
-    /** @test */
+    #[Test]
     public function wrong_password_returns_422(): void
     {
         $operator = $this->makePlatformUser();
@@ -85,7 +87,7 @@ class PlatformAuthTest extends TestCase
     // PA-03 — Inactive operator returns 403
     // =========================================================================
 
-    /** @test */
+    #[Test]
     public function inactive_operator_login_returns_403(): void
     {
         $operator = $this->makePlatformUser(active: false);
@@ -103,11 +105,11 @@ class PlatformAuthTest extends TestCase
     // PA-04 — GET /api/platform/auth/me returns operator profile
     // =========================================================================
 
-    /** @test */
+    #[Test]
     public function authenticated_operator_can_get_own_profile(): void
     {
         $operator = $this->makePlatformUser();
-        $token    = $operator->createToken('platform-api', ['platform:*'])->plainTextToken;
+        $token    = $operator->createPlatformToken('platform-api', ['platform:*'])->plainTextToken;
 
         $response = $this->getJson('/api/platform/auth/me', [
             'Authorization' => 'Bearer ' . $token,
@@ -124,7 +126,7 @@ class PlatformAuthTest extends TestCase
     // PA-05 — No token returns 401
     // =========================================================================
 
-    /** @test */
+    #[Test]
     public function unauthenticated_request_to_me_returns_401(): void
     {
         $response = $this->getJson('/api/platform/auth/me');
@@ -135,11 +137,11 @@ class PlatformAuthTest extends TestCase
     // PA-07 — Logout returns 200 and success message
     // =========================================================================
 
-    /** @test */
+    #[Test]
     public function logout_returns_200_and_success_message(): void
     {
         $operator   = $this->makePlatformUser();
-        $plainToken = $operator->createToken('platform-api', ['platform:*'])->plainTextToken;
+        $plainToken = $operator->createPlatformToken('platform-api', ['platform:*'])->plainTextToken;
 
         $logoutResponse = $this->postJson('/api/platform/auth/logout', [], [
             'Authorization' => 'Bearer ' . $plainToken,
@@ -159,7 +161,7 @@ class PlatformAuthTest extends TestCase
     // never 419 (CSRF token mismatch).
     // =========================================================================
 
-    /** @test */
+    #[Test]
     public function platform_login_from_stateful_origin_does_not_return_419(): void
     {
         $operator = $this->makePlatformUser();
@@ -191,12 +193,12 @@ class PlatformAuthTest extends TestCase
     // the same transaction — assertDatabaseMissing sees the post-delete state.
     // =========================================================================
 
-    /** @test */
+    #[Test]
     public function logout_deletes_the_pat_from_database(): void
     {
         $operator        = $this->makePlatformUser();
         $uniqueTokenName = 'platform-api-test-' . uniqid();
-        $tokenResult     = $operator->createToken($uniqueTokenName, ['platform:*']);
+        $tokenResult     = $operator->createPlatformToken($uniqueTokenName, ['platform:*']);
         $plainToken      = $tokenResult->plainTextToken;
 
         // Logout — must revoke (delete) the token.
@@ -204,9 +206,9 @@ class PlatformAuthTest extends TestCase
             'Authorization' => 'Bearer ' . $plainToken,
         ])->assertStatus(200);
 
-        // Token row must be gone from personal_access_tokens (identified by unique name).
+        // Token row must be gone from platform_personal_access_tokens on mysql.
         $this->assertDatabaseMissing(
-            'personal_access_tokens',
+            'platform_personal_access_tokens',
             ['name' => $uniqueTokenName],
             'mysql'
         );
@@ -219,11 +221,11 @@ class PlatformAuthTest extends TestCase
     // without X-Tenant must succeed (200), not fail with a tenant error.
     // =========================================================================
 
-    /** @test */
+    #[Test]
     public function platform_me_does_not_require_x_tenant_header(): void
     {
         $operator = $this->makePlatformUser();
-        $token    = $operator->createToken('platform-api', ['platform:*'])->plainTextToken;
+        $token    = $operator->createPlatformToken('platform-api', ['platform:*'])->plainTextToken;
 
         // Deliberately omit X-Tenant header.
         $response = $this->getJson('/api/platform/auth/me', [
@@ -248,7 +250,7 @@ class PlatformAuthTest extends TestCase
     // automatically), so a 419 can never be produced from within PHPUnit.
     // =========================================================================
 
-    /** @test */
+    #[Test]
     public function ensure_frontend_stateful_middleware_is_absent_from_platform_routes(): void
     {
         /** @var \Illuminate\Routing\Router $router */
@@ -268,7 +270,7 @@ class PlatformAuthTest extends TestCase
         );
     }
 
-    /** @test */
+    #[Test]
     public function ensure_frontend_stateful_middleware_is_present_in_api_group(): void
     {
         // EnsureFrontendRequestsAreStateful is registered as a group middleware on the
@@ -317,6 +319,24 @@ class PlatformAuthTest extends TestCase
                 $table->timestamps();
                 $table->index('email');
                 $table->index('is_active');
+            });
+        }
+    }
+
+    private function ensurePlatformPATTableExists(): void
+    {
+        if (! Schema::connection('mysql')->hasTable('platform_personal_access_tokens')) {
+            Schema::connection('mysql')->create('platform_personal_access_tokens', function ($table) {
+                $table->id();
+                $table->string('tokenable_type');
+                $table->unsignedBigInteger('tokenable_id');
+                $table->index(['tokenable_type', 'tokenable_id'], 'ppat_tokenable_index');
+                $table->string('name');
+                $table->string('token', 64)->unique();
+                $table->text('abilities')->nullable();
+                $table->timestamp('last_used_at')->nullable();
+                $table->timestamp('expires_at')->nullable();
+                $table->timestamps();
             });
         }
     }

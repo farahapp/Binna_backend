@@ -53,7 +53,28 @@ class TenantMembershipVerificationTest extends TestCase
             Artisan::call('migrate', ['--path' => 'database/migrations/shared', '--force' => true]);
         }
 
-        DB::connection('mysql')->table('tenants')->insertOrIgnore([
+        // Step 1: Remove any row this Suite previously inserted (by slug).
+        DB::connection('mysql')->table('tenants')
+            ->where('slug', 'tenant-a')
+            ->delete();
+
+        // Step 2: Guard — detect a foreign stale row sharing our schema_name.
+        $conflict = DB::connection('mysql')->table('tenants')
+            ->where('schema_name', 'binaa2_testing')
+            ->where('slug', '!=', 'tenant-a')
+            ->first();
+
+        if ($conflict !== null) {
+            $this->fail(
+                "FIX-A-CODE guard: schema_name='binaa2_testing' is already " .
+                "claimed by slug='{$conflict->slug}' (id={$conflict->id}). " .
+                "A previous test run left a stale row. " .
+                "Run: DELETE FROM tenants WHERE id={$conflict->id} AND slug='{$conflict->slug}';"
+            );
+        }
+
+        // Step 3: Insert our own row.
+        DB::connection('mysql')->table('tenants')->insert([
             'slug'        => 'tenant-a',
             'name'        => 'Tenant A',
             'schema_name' => 'binaa2_testing',
@@ -63,8 +84,8 @@ class TenantMembershipVerificationTest extends TestCase
         ]);
 
         Config::set('database.connections.tenant.driver', 'mysql');
-        Config::set('database.connections.tenant.host', '127.0.0.1');
-        Config::set('database.connections.tenant.port', '3306');
+        Config::set('database.connections.tenant.host', config('database.connections.mysql.host', '127.0.0.1'));
+        Config::set('database.connections.tenant.port', config('database.connections.mysql.port', '3307'));
         Config::set('database.connections.tenant.database', 'binaa2_testing');
         Config::set('database.connections.tenant.username', config('database.connections.mysql.username'));
         Config::set('database.connections.tenant.password', config('database.connections.mysql.password'));
@@ -95,6 +116,23 @@ class TenantMembershipVerificationTest extends TestCase
                 $table->timestamp('last_used_at')->nullable();
                 $table->timestamp('expires_at')->nullable();
                 $table->timestamps();
+            });
+        }
+
+        // AuthController::logout() calls AuditService::logEvent() which writes
+        // to audit_entries on the 'tenant' connection. The table must exist in
+        // binaa2_testing (port 3307) for the logout request to succeed.
+        if (! Schema::connection('tenant')->hasTable('audit_entries')) {
+            Schema::connection('tenant')->create('audit_entries', function ($table) {
+                $table->uuid('id')->primary();
+                $table->string('event');
+                $table->string('actor_id')->nullable();
+                $table->string('tenant_slug');
+                $table->string('subject_type')->nullable();
+                $table->string('subject_id')->nullable();
+                $table->json('before')->nullable();
+                $table->json('after')->nullable();
+                $table->timestamp('created_at')->nullable();
             });
         }
     }

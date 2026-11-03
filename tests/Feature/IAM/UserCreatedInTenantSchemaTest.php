@@ -79,8 +79,8 @@ class UserCreatedInTenantSchemaTest extends TestCase
         ]);
 
         Config::set('database.connections.tenant.driver', 'mysql');
-        Config::set('database.connections.tenant.host', '127.0.0.1');
-        Config::set('database.connections.tenant.port', '3306');
+        Config::set('database.connections.tenant.host', config('database.connections.mysql.host', '127.0.0.1'));
+        Config::set('database.connections.tenant.port', config('database.connections.mysql.port', '3307'));
         Config::set('database.connections.tenant.database', 'binaa2_testing');
         Config::set('database.connections.tenant.username', config('database.connections.mysql.username'));
         Config::set('database.connections.tenant.password', config('database.connections.mysql.password'));
