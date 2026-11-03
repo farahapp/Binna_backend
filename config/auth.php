@@ -44,6 +44,14 @@ return [
             'driver' => 'sanctum',
             'provider' => 'users',
         ],
+        // Platform operator guard — uses the custom PlatformGuard driver.
+        // Queries platform_personal_access_tokens on the shared 'mysql' connection.
+        // Entirely independent of the Sanctum tenant guard ('api').
+        // Applied to platform routes via auth:platform-token middleware.
+        'platform-token' => [
+            'driver'   => 'platform-token',
+            'provider' => 'platform_users',
+        ],
     ],
 
     /*
@@ -67,6 +75,13 @@ return [
         'users' => [
             'driver' => 'eloquent',
             'model' => App\IAM\User::class,
+        ],
+
+        // Platform operator provider — backed by platform_users on mysql.
+        // Used exclusively by the 'platform-token' guard.
+        'platform_users' => [
+            'driver' => 'eloquent',
+            'model'  => App\Foundation\PlatformUser::class,
         ],
 
         // 'users' => [

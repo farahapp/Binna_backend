@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Middleware;
 
+use App\Foundation\PlatformUser;
 use App\Foundation\TenantContext;
 use App\IAM\User;
 use Closure;
@@ -24,12 +25,24 @@ class VerifyTenantMembership
 {
     public function handle(Request $request, Closure $next): Response
     {
+        // ── Type Guard (GAP-3 / TG-01 / TG-02) ──────────────────────────────
+        // Reject PlatformUser immediately — before any tenant schema switch or
+        // query. Platform operators must never access tenant-scoped endpoints.
+        // Reference: VerifyTenantMembershipTypeGuardTest TG-01/TG-02 + IAM-ARCH-002 §4.2
+        $user = $request->user();
+
+        if ($user instanceof PlatformUser) {
+            return response()->json(
+                ['error' => 'Platform operators cannot access tenant endpoints.'],
+                Response::HTTP_FORBIDDEN
+            );
+        }
+        // ─────────────────────────────────────────────────────────────────────
+
         $context = app(TenantContext::class);
 
         // Switch to tenant schema and verify user exists there.
         $this->switchToTenantSchema($context->schemaName);
-
-        $user = $request->user();
 
         if (! $user) {
             return response()->json(['error' => 'Unauthenticated.'], Response::HTTP_UNAUTHORIZED);

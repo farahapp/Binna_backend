@@ -77,13 +77,16 @@ Route::prefix('platform')
     // Protected: require authenticated platform operator
     // auth:sanctum resolves the bearer token against all registered tokenable models.
     // platform.operator then verifies the resolved user is a PlatformUser (not a tenant user).
-    Route::middleware(['auth:sanctum,platform', 'platform.operator'])->group(function () {
+    Route::middleware(['auth:platform-token', 'platform.operator'])->group(function () {
 
         Route::post('/auth/logout', [PlatformAuthController::class, 'logout'])
             ->name('auth.logout');
 
         Route::get('/auth/me', [PlatformAuthController::class, 'me'])
             ->name('auth.me');
+
+        Route::post('/auth/change-password', [PlatformAuthController::class, 'changePassword'])
+            ->name('auth.change-password');
 
         // Tenant management
         Route::get('/tenants', [PlatformTenantController::class, 'index'])
