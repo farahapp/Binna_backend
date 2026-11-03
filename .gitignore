@@ -129,3 +129,5 @@ yarn-error.log
 # --- Storage test result files ---
 /storage/notif_results.xml
 /storage/notif_results2.xml
+_provision_platform_test_user.php  
+_setup_platform_e2e.ps1  
