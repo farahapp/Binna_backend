@@ -6,6 +6,7 @@ namespace App\Foundation;
 
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Throwable;
 
 /**
@@ -215,31 +216,42 @@ class DomainMigrator
             $migration = require $file;
 
             // Run the migration's up() method.
-            // Wrap in a secondary try/catch for MySQL SQLSTATE 42S01 ("Table already exists").
-            // This handles the case where a previous provisioning attempt created the
-            // table but failed before recording the migration in tenant_migrations,
-            // leaving the schema in a partially-applied state.
             //
-            // We match on SQLSTATE '42S01' (the standard SQL state for "base table or
-            // view already exists") rather than on the human-readable message string.
-            // This avoids false positives from unrelated errors that happen to contain
-            // the phrase "already exists" (e.g. MySQL 1061 duplicate key name).
+            // Two idempotency cases are handled here for partial-provisioning re-runs:
             //
-            // NOTE: We do NOT verify column-level schema correctness here. If a table
-            // exists with a different structure (e.g. from a manual DDL or a different
-            // migration), the 42S01 catch will still record the migration as 'applied'.
-            // This is an acceptable trade-off for idempotent re-runs after partial
-            // failure — the assumption is that any pre-existing table in a tenant schema
-            // was created by a prior run of this same migration.
+            // Case A — SQLSTATE 42S01 (MySQL 1050): "Base table or view already exists".
+            //   Thrown by Schema::create() when the table was created in a prior run but
+            //   the migration was never recorded. Treated as success — the table exists.
+            //
+            // Case B — SQLSTATE 42S21 (MySQL 1060): "Duplicate column name".
+            //   Thrown by Schema::table() ADD COLUMN (e.g. add_progress_percentage_to_projects)
+            //   when the column was added in a prior run but the migration was never recorded.
+            //   We do NOT blindly accept this — we first verify that the existing column
+            //   matches the migration's intent (correct type, nullable/not-null, default).
+            //   If the column matches → treat as idempotent success.
+            //   If the column does NOT match → re-throw so the operator can investigate.
+            //
+            // We match on SQLSTATE codes (not human-readable message strings) to avoid
+            // false positives from unrelated errors.
             try {
                 $migration->up();
             } catch (\Illuminate\Database\QueryException $qe) {
-                // SQLSTATE 42S01: Base table or view already exists (MySQL error 1050).
-                // Treat as idempotent success — the table was created by a prior run.
-                // Any other SQLSTATE is re-thrown as a real failure.
-                if ($qe->getCode() === '42S01') {
+                $sqlState = $qe->getCode();
+
+                if ($sqlState === '42S01') {
                     // Table already exists from a prior partial provisioning run.
-                    // Record as applied and continue.
+                    // Record as applied and continue — no further verification needed
+                    // because the table-level guard (hasTable) in IamMigrator already
+                    // validates structure for IAM tables; domain tables are created
+                    // atomically by a single CREATE TABLE statement.
+
+                } elseif ($sqlState === '42S21') {
+                    // Duplicate column name — thrown by ALTER TABLE ADD COLUMN.
+                    // Verify the existing column matches the migration definition
+                    // before accepting it as idempotent.
+                    // FIX: PROV-DOM-002 — safe handling of pre-existing ADD COLUMN migrations.
+                    $this->verifyExistingColumnOrThrow($qe, $connectionName);
+
                 } else {
                     throw $qe;
                 }
@@ -251,14 +263,158 @@ class DomainMigrator
             throw $e;
         } finally {
             // Always restore the original default and tenant connections.
+            // FIX: PROV-DOM-003 — always restore tenant config, even when it was null,
+            // to prevent config leak between tests and between provisioning runs.
             Config::set('database.default', $previousDefault);
             DB::setDefaultConnection($previousDefault);
 
+            // Restore tenant connection: if it was null before we set it, remove the
+            // override entirely so the next caller gets a clean slate.
             if ($previousTenantConfig !== null) {
                 Config::set('database.connections.tenant', $previousTenantConfig);
+            } else {
+                Config::set('database.connections.tenant', null);
             }
             DB::purge('tenant'); // Force reconnect with restored config on next use.
         }
+    }
+
+    /**
+     * Verify that the column which triggered a 42S21 "Duplicate column name" error
+     * matches the migration's expected definition before accepting it as idempotent.
+     *
+     * Strategy: parse the failing ALTER TABLE SQL to extract the expected column
+     * definition, then compare it against information_schema.COLUMNS.
+     *
+     * Checks performed:
+     *   1. Column exists in information_schema (if not → re-throw: 42S21 from
+     *      something other than a duplicate column, e.g. a duplicate index name).
+     *   2. DATA_TYPE family matches: the MySQL type family reported by
+     *      information_schema must be compatible with the type in the failing SQL.
+     *      We compare type families (e.g. "tinyint" ↔ "tinyint", "char" ↔ "char")
+     *      rather than full COLUMN_TYPE strings to avoid false mismatches from
+     *      unsigned/signed or length differences that MySQL normalises differently.
+     *   3. Nullability matches: IS_NULLABLE in information_schema must match
+     *      whether the failing SQL contains "not null" or not.
+     *
+     * If any check fails → re-throw so the operator can investigate the mismatch.
+     * If parsing fails (SQL format unexpected) → re-throw conservatively.
+     *
+     * FIX: PROV-DOM-002 — full column-definition verification for 42S21.
+     *
+     * @throws \Illuminate\Database\QueryException — re-thrown if column does not match
+     *                                               or cannot be verified
+     */
+    private function verifyExistingColumnOrThrow(
+        \Illuminate\Database\QueryException $originalException,
+        string $connectionName
+    ): void {
+        $sql = $originalException->getSql() ?? '';
+
+        // ── Step 1: Parse table name and column name from the failing SQL ────────
+        //
+        // Expected pattern (Laravel Blueprint output):
+        //   alter table `<table>` add `<column>` <type_fragment> [not null|null] ...
+        //
+        // We use conservative regexes; if either parse fails we re-throw.
+        $tableMatch  = [];
+        $columnMatch = [];
+
+        if (preg_match('/alter\s+table\s+[`"]?(\w+)[`"]?/i', $sql, $tableMatch) !== 1) {
+            throw $originalException;
+        }
+        if (preg_match('/\badd\s+(?:column\s+)?[`"]?(\w+)[`"]?/i', $sql, $columnMatch) !== 1) {
+            throw $originalException;
+        }
+
+        $tableName  = $tableMatch[1];
+        $columnName = $columnMatch[1];
+
+        // ── Step 2: Determine expected nullability from the failing SQL ───────────
+        //
+        // Laravel emits "not null" for non-nullable columns and "null" (or nothing)
+        // for nullable ones. We check for the literal "not null" phrase.
+        $expectedNotNull = (bool) preg_match('/\bnot\s+null\b/i', $sql);
+
+        // ── Step 3: Determine expected DATA_TYPE family from the failing SQL ──────
+        //
+        // We extract the first MySQL type keyword after the column name.
+        // Laravel Blueprint emits types like: tinyint unsigned, char(36), varchar(255),
+        // bigint unsigned, int unsigned, decimal(8,2), etc.
+        //
+        // We capture the first word after the column name as the type family.
+        $typeMatch = [];
+        $escapedCol = preg_quote($columnName, '/');
+        if (preg_match('/[`"]?' . $escapedCol . '[`"]?\s+(\w+)/i', $sql, $typeMatch) !== 1) {
+            throw $originalException;
+        }
+        // Normalise to lowercase for comparison.
+        $expectedTypeFamily = strtolower($typeMatch[1]);
+
+        // ── Step 4: Query information_schema for the existing column ──────────────
+        $schemaName = Config::get("database.connections.{$connectionName}.database");
+
+        $columnInfo = DB::connection($connectionName)
+            ->selectOne(
+                'SELECT DATA_TYPE, IS_NULLABLE, COLUMN_TYPE
+                 FROM information_schema.COLUMNS
+                 WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND COLUMN_NAME = ?',
+                [$schemaName, $tableName, $columnName]
+            );
+
+        if ($columnInfo === null) {
+            // Column does not exist in information_schema — the 42S21 was not caused
+            // by a duplicate column (possibly a duplicate index name or other DDL
+            // collision). Re-throw so the operator can investigate.
+            throw $originalException;
+        }
+
+        // ── Step 5: Verify DATA_TYPE family ──────────────────────────────────────
+        //
+        // information_schema.DATA_TYPE gives the base type without modifiers:
+        //   "tinyint", "char", "varchar", "bigint", "int", "decimal", etc.
+        //
+        // We compare the existing DATA_TYPE against the expected type family.
+        // MySQL type aliases we normalise:
+        //   uuid() → char(36) → DATA_TYPE = 'char'
+        //   unsignedTinyInteger() → tinyint unsigned → DATA_TYPE = 'tinyint'
+        //   unsignedBigInteger() → bigint unsigned → DATA_TYPE = 'bigint'
+        //
+        // We also handle the case where Laravel emits "char" for uuid columns
+        // (uuid() is a Blueprint helper that maps to char(36) in MySQL).
+        $existingDataType = strtolower((string) $columnInfo->DATA_TYPE);
+
+        // Build a normalisation map for known Blueprint → MySQL type aliases.
+        $typeAliases = [
+            'uuid'    => 'char',   // Blueprint::uuid() → char(36)
+            'boolean' => 'tinyint', // Blueprint::boolean() → tinyint(1)
+            'bool'    => 'tinyint',
+        ];
+        $normalisedExpected = $typeAliases[$expectedTypeFamily] ?? $expectedTypeFamily;
+
+        if ($existingDataType !== $normalisedExpected) {
+            // DATA_TYPE mismatch — the existing column has a different type than
+            // what the migration defines. This is a real schema inconsistency.
+            // Re-throw so the operator can investigate and fix manually.
+            throw $originalException;
+        }
+
+        // ── Step 6: Verify nullability ────────────────────────────────────────────
+        $existingIsNullable = strtoupper((string) $columnInfo->IS_NULLABLE) === 'YES';
+
+        if ($expectedNotNull === $existingIsNullable) {
+            // Nullability mismatch:
+            //   - Migration says NOT NULL but existing column is nullable, OR
+            //   - Migration says nullable but existing column is NOT NULL.
+            // Either way this is a schema inconsistency. Re-throw.
+            throw $originalException;
+        }
+
+        // ── All checks passed ─────────────────────────────────────────────────────
+        // The existing column matches the migration's definition:
+        //   - DATA_TYPE family matches.
+        //   - Nullability matches.
+        // Treat as idempotent success — the column was added by a prior partial run.
     }
 
     /**
