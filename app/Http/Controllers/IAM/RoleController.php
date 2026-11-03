@@ -42,12 +42,26 @@ class RoleController extends Controller
      */
     public function assignPermission(Request $request, int|string $roleId, int|string $permissionId): JsonResponse
     {
+        // ── Authorization (SEP-03 / SEP-10) ──────────────────────────────────
+        // Rule: tenant_admin role OR iam:roles:assign_permission permission.
+        // Reference: PlatformTenantSeparationTest SEP-03/04/05/10 + IAM-ARCH-002 §4.2 principle 5.
+        // Uses existing User::hasRole() and User::hasPermission() — no new Policy/Gate/Middleware.
+        $actor      = $request->user();
+        $authorized = $actor
+            && ($actor->hasRole('tenant_admin')
+                || $actor->hasPermission('iam:roles:assign_permission'));
+
+        if (! $authorized) {
+            return response()->json(['error' => 'Forbidden'], 403);
+        }
+        // ─────────────────────────────────────────────────────────────────────
+
         // tenant_slug from the resolved TenantContext — authoritative source (OD-001).
         $tenantContext = app(TenantContext::class);
         $tenantSlug    = $tenantContext->slug;
 
         // Actor = authenticated user performing the change.
-        $actorId = $request->user()?->id ? (string) $request->user()->id : null;
+        $actorId = (string) $actor->id;
 
         // Resolve models explicitly on the 'tenant' connection (OD-001).
         $role       = Role::on('tenant')->findOrFail($roleId);
