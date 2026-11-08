@@ -4,11 +4,14 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Platform;
 
+use App\Audit\PlatformAuditService;
 use App\Foundation\PlatformUser;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -37,7 +40,7 @@ class PlatformAuthController extends Controller
      * POST /api/platform/auth/login
      * Body: { email, password }
      */
-    public function login(Request $request): JsonResponse
+    public function login(Request $request, PlatformAuditService $audit): JsonResponse
     {
         $request->validate([
             'email'    => ['required', 'email'],
@@ -65,7 +68,17 @@ class PlatformAuthController extends Controller
         // This writes to platform_personal_access_tokens on mysql — never to the
         // tenant connection. Do NOT use createToken() here; that would write to
         // App\IAM\PersonalAccessToken on the 'tenant' connection (wrong table, wrong DB).
-        $token = $operator->createPlatformToken('platform-api', ['platform:*'])->plainTextToken;
+        $token = DB::connection('mysql')->transaction(function () use ($audit, $operator): string {
+            $token = $operator->createPlatformToken('platform-api', ['platform:*'])->plainTextToken;
+            $audit->recordIfAvailable(
+                $operator,
+                'platform.auth.login',
+                'platform_user',
+                $operator->getKey(),
+            );
+
+            return $token;
+        });
 
         return response()->json([
             'token'      => $token,
@@ -79,7 +92,7 @@ class PlatformAuthController extends Controller
      * POST /api/platform/auth/logout
      * Headers: Authorization: Bearer {token}
      */
-    public function logout(Request $request): JsonResponse
+    public function logout(Request $request, PlatformAuditService $audit): JsonResponse
     {
         $bearerToken = $request->bearerToken();
 
@@ -88,7 +101,18 @@ class PlatformAuthController extends Controller
         // if currentAccessToken() is not available (e.g. unauthenticated call).
         $operator = $request->user();
         if ($operator && method_exists($operator, 'currentAccessToken')) {
-            $operator->currentAccessToken()->delete();
+            DB::connection('mysql')->transaction(function () use ($audit, $operator): void {
+                $currentToken = $operator->currentAccessToken();
+                $audit->recordIfAvailable(
+                    $operator,
+                    'platform.auth.logout',
+                    'platform_user',
+                    $operator->getKey(),
+                    null,
+                    ['token_id' => $currentToken?->getKey()],
+                );
+                $currentToken?->delete();
+            });
         } elseif ($bearerToken) {
             $parts      = explode('|', $bearerToken, 2);
             $tokenValue = $parts[1] ?? $bearerToken;
@@ -115,12 +139,27 @@ class PlatformAuthController extends Controller
     {
         /** @var PlatformUser $operator */
         $operator = $request->user();
+        $roles = collect();
+        if (PlatformUser::platformIamSchemaAvailable()) {
+            $roles = $operator->platformRoles()
+                ->with('permissions:id,name')
+                ->get(['platform_roles.id', 'platform_roles.name', 'platform_roles.slug']);
+        }
+        $permissions = $roles->flatMap(
+            fn ($role) => $role->permissions->pluck('name')
+        )->unique()->values();
 
         return response()->json([
             'id'        => $operator->id,
             'name'      => $operator->name,
             'email'     => $operator->email,
             'is_active' => $operator->is_active,
+            'roles'     => $roles->map(fn ($role) => [
+                'id' => $role->id,
+                'name' => $role->name,
+                'slug' => $role->slug,
+            ])->values(),
+            'permissions' => $permissions,
         ]);
     }
 
@@ -136,11 +175,11 @@ class PlatformAuthController extends Controller
      *  - Verifies current_password against the stored hash before any write.
      *  - Stores new password using Hash::make() — never plain-text.
      *  - Does NOT return or log any password value or hash.
-     *  - Does NOT revoke existing PATs — session continuity is preserved.
+     *  - Revokes all existing platform PATs after a successful password change.
      *  - Only operates on the authenticated PlatformUser — cannot change another user's password.
      *  - Tenant users are rejected upstream by RequirePlatformOperator middleware.
      */
-    public function changePassword(Request $request): JsonResponse
+    public function changePassword(Request $request, PlatformAuditService $audit): JsonResponse
     {
         $request->validate([
             'current_password'      => ['required', 'string'],
@@ -168,13 +207,26 @@ class PlatformAuthController extends Controller
         // Persist the new hashed password directly on the shared mysql connection.
         // PlatformUser $casts['password'] = 'hashed' would re-hash on Eloquent save,
         // so we use DB::update to write the already-hashed value without double-hashing.
-        \Illuminate\Support\Facades\DB::connection('mysql')
-            ->table('platform_users')
-            ->where('id', $operator->id)
-            ->update([
-                'password'   => Hash::make($request->new_password),
-                'updated_at' => now(),
-            ]);
+        DB::connection('mysql')->transaction(function () use ($audit, $operator, $request): void {
+            $connection = DB::connection('mysql');
+            $connection
+                ->table('platform_users')
+                ->where('id', $operator->id)
+                ->update([
+                    'password'   => Hash::make($request->new_password),
+                    'updated_at' => now(),
+                ]);
+            $connection->table('platform_personal_access_tokens')
+                ->where('tokenable_type', PlatformUser::class)
+                ->where('tokenable_id', $operator->getKey())
+                ->delete();
+            $audit->recordIfAvailable(
+                $operator,
+                'platform.auth.password_changed',
+                'platform_user',
+                $operator->getKey(),
+            );
+        });
 
         // No password, hash, or token is returned.
         return response()->json([

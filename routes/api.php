@@ -9,6 +9,7 @@ use App\Http\Controllers\CostControl\CostControlController;
 use App\Http\Controllers\CRM\CRMController;
 use App\Http\Controllers\Document\DocumentController;
 use App\Http\Controllers\IAM\AuthController;
+use App\Http\Controllers\IAM\TenantResolutionController;
 use App\Http\Controllers\IAM\RoleController;
 use App\Http\Controllers\Inventory\GoodsReceiptController;
 use App\Http\Controllers\Inventory\StockController;
@@ -29,7 +30,10 @@ use App\Http\Controllers\Network\EvaluationController;
 use App\Http\Controllers\Network\AwardController;
 use App\Http\Controllers\Network\NetworkProfileVerificationController;
 use App\Http\Controllers\Platform\PlatformAuthController;
+use App\Http\Controllers\Platform\PlatformPermissionController;
+use App\Http\Controllers\Platform\PlatformRoleController;
 use App\Http\Controllers\Platform\PlatformTenantController;
+use App\Http\Controllers\Platform\PlatformUserController;
 use Illuminate\Support\Facades\Route;
 use Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful;
 
@@ -88,22 +92,128 @@ Route::prefix('platform')
         Route::post('/auth/change-password', [PlatformAuthController::class, 'changePassword'])
             ->name('auth.change-password');
 
+        // Platform IAM uses shared-schema roles and permissions, never Tenant IAM.
+        Route::get('/users', [PlatformUserController::class, 'index'])
+            ->middleware('platform.permission:platform.users.view')
+            ->name('users.index');
+        Route::post('/users', [PlatformUserController::class, 'store'])
+            ->middleware([
+                'platform.permission:platform.users.create',
+                'platform.permission:platform.users.assign-roles',
+                'platform.permission:platform.roles.view',
+            ])
+            ->name('users.store');
+        Route::patch('/users/{id}', [PlatformUserController::class, 'update'])
+            ->middleware('platform.permission:platform.users.update')
+            ->name('users.update');
+        Route::put('/users/{id}/roles', [PlatformUserController::class, 'syncRoles'])
+            ->middleware([
+                'platform.permission:platform.users.assign-roles',
+                'platform.permission:platform.roles.view',
+            ])
+            ->name('users.roles.sync');
+
+        Route::get('/roles', [PlatformRoleController::class, 'index'])
+            ->middleware('platform.permission:platform.roles.view')
+            ->name('roles.index');
+        Route::post('/roles', [PlatformRoleController::class, 'store'])
+            ->middleware([
+                'platform.permission:platform.roles.create',
+                'platform.permission:platform.roles.assign-permissions',
+                'platform.permission:platform.permissions.view',
+            ])
+            ->name('roles.store');
+        Route::patch('/roles/{id}', [PlatformRoleController::class, 'update'])
+            ->middleware('platform.permission:platform.roles.update')
+            ->name('roles.update');
+        Route::put('/roles/{id}/permissions', [PlatformRoleController::class, 'syncPermissions'])
+            ->middleware([
+                'platform.permission:platform.roles.assign-permissions',
+                'platform.permission:platform.permissions.view',
+            ])
+            ->name('roles.permissions.sync');
+        Route::delete('/roles/{id}', [PlatformRoleController::class, 'destroy'])
+            ->middleware('platform.permission:platform.roles.delete')
+            ->name('roles.destroy');
+
+        Route::get('/permissions', [PlatformPermissionController::class, 'index'])
+            ->middleware('platform.permission:platform.permissions.view')
+            ->name('permissions.index');
+
         // Tenant management
         Route::get('/tenants', [PlatformTenantController::class, 'index'])
+            ->middleware('platform.permission:platform.tenants.view')
             ->name('tenants.index');
+        Route::post('/tenants', [PlatformTenantController::class, 'store'])
+            ->middleware([
+                'platform.permission:platform.tenants.create',
+                'platform.permission:platform.tenants.view',
+            ])
+            ->name('tenants.store');
 
         Route::get('/tenants/{id}', [PlatformTenantController::class, 'show'])
+            ->middleware('platform.permission:platform.tenants.view')
             ->name('tenants.show');
+        Route::patch('/tenants/{id}', [PlatformTenantController::class, 'update'])
+            ->middleware([
+                'platform.permission:platform.tenants.update',
+                'platform.permission:platform.tenants.view',
+            ])
+            ->name('tenants.update');
+        Route::post('/tenants/{id}/identifiers', [PlatformTenantController::class, 'storeIdentifier'])
+            ->middleware([
+                'platform.permission:platform.tenants.update',
+                'platform.permission:platform.tenants.view',
+            ])
+            ->name('tenants.identifiers.store');
+        Route::patch('/tenants/{id}/identifiers/{identifierId}', [PlatformTenantController::class, 'updateIdentifier'])
+            ->middleware([
+                'platform.permission:platform.tenants.update',
+                'platform.permission:platform.tenants.view',
+            ])
+            ->name('tenants.identifiers.update');
+        Route::post('/tenants/{id}/identifiers/{identifierId}/approve', [PlatformTenantController::class, 'approveIdentifier'])
+            ->middleware([
+                'platform.permission:platform.tenants.identifiers.approve',
+                'platform.permission:platform.tenants.view',
+            ])
+            ->name('tenants.identifiers.approve');
+        Route::delete('/tenants/{id}/identifiers/{identifierId}', [PlatformTenantController::class, 'destroyIdentifier'])
+            ->middleware([
+                'platform.permission:platform.tenants.update',
+                'platform.permission:platform.tenants.view',
+            ])
+            ->name('tenants.identifiers.destroy');
 
         Route::patch('/tenants/{id}/suspend', [PlatformTenantController::class, 'suspend'])
+            ->middleware([
+                'platform.permission:platform.tenants.suspend',
+                'platform.permission:platform.tenants.view',
+            ])
             ->name('tenants.suspend');
 
         Route::patch('/tenants/{id}/activate', [PlatformTenantController::class, 'activate'])
+            ->middleware([
+                'platform.permission:platform.tenants.activate',
+                'platform.permission:platform.tenants.view',
+            ])
             ->name('tenants.activate');
     });
 });
 
-// ─── Public: Login only ───────────────────────────────────────────────────────
+// ─── Public: Two-step tenant login ───────────────────────────────────────────
+Route::post('/auth/tenant/resolve', [TenantResolutionController::class, 'resolve'])
+    ->name('auth.tenant.resolve');
+
+Route::middleware(['tenant.login-token', 'tenant', 'tenant.schema'])->group(function () {
+    Route::post('/auth/tenant/login', [AuthController::class, 'login'])
+        ->name('auth.tenant.login');
+
+    Route::post('/auth/tenant/spa/login', [AuthController::class, 'spaLogin'])
+        ->name('auth.tenant.spa.login');
+});
+
+// ─── Public: Legacy Flutter login retained with verified CR/QID checks ────────
 Route::middleware(['tenant', 'tenant.schema'])->group(function () {
 
     // Authentication — Login (HB-1) — PAT

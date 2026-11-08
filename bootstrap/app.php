@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\ResolveTenantContext;
+use App\Http\Middleware\ResolveTenantFromLoginToken;
 use App\Http\Middleware\SwitchToTenantSchema;
 use Illuminate\Contracts\Auth\Middleware\AuthenticatesRequests;
 use Illuminate\Foundation\Application;
@@ -31,11 +32,13 @@ return Application::configure(basePath: dirname(__DIR__))
         // 'ability'   checks ANY listed ability  (OR logic).
         $middleware->alias([
             'tenant'            => ResolveTenantContext::class,
+            'tenant.login-token'=> \App\Http\Middleware\ResolveTenantFromLoginToken::class,
             'tenant.schema'     => SwitchToTenantSchema::class,
             'abilities'         => \Laravel\Sanctum\Http\Middleware\CheckAbilities::class,
             'ability'           => \Laravel\Sanctum\Http\Middleware\CheckForAnyAbility::class,
             'tenant.membership' => \App\Http\Middleware\VerifyTenantMembership::class,
             'platform.operator' => \App\Http\Middleware\RequirePlatformOperator::class,
+            'platform.permission' => \App\Http\Middleware\RequirePlatformPermission::class,
         ]);
 
         // Middleware priority fix (M4 — HB-1):
@@ -52,6 +55,13 @@ return Application::configure(basePath: dirname(__DIR__))
             \Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse::class,
             \Illuminate\Session\Middleware\StartSession::class,
             \Illuminate\View\Middleware\ShareErrorsFromSession::class,
+            // ResolveTenantFromLoginToken MUST precede ResolveTenantContext so that
+            // the token-based login flow pre-binds TenantContext before PATH B
+            // (X-Tenant check) runs. Without this entry, Laravel's priority sorter
+            // would place ResolveTenantContext (which IS in the list) before
+            // ResolveTenantFromLoginToken (which was NOT), causing a 400 on
+            // POST /api/auth/tenant/login even when a valid resolution_token is sent.
+            ResolveTenantFromLoginToken::class,
             ResolveTenantContext::class,
             SwitchToTenantSchema::class,
             AuthenticatesRequests::class,

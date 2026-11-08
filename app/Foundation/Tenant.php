@@ -24,6 +24,11 @@ use Illuminate\Support\Carbon;
  */
 class Tenant extends Model
 {
+    public const CLASSIFICATION_CONTRACTING_COMPANY = 'contracting_company';
+    public const CLASSIFICATION_INDIVIDUAL_CONTRACTOR = 'individual_contractor';
+    public const CLASSIFICATION_ENGINEERING_CONSULTANCY = 'engineering_consultancy';
+    public const CLASSIFICATION_NEEDS_REVIEW = 'needs_review';
+
     /** Shared-schema connection — never the per-tenant connection. */
     protected $connection = 'mysql';
 
@@ -32,6 +37,13 @@ class Tenant extends Model
     protected $fillable = [
         'slug',
         'name',
+        'legal_type',
+        'activity_type',
+        'phone',
+        'email',
+        'responsible_name',
+        'responsible_qid',
+        'qid_expires_at',
         'status',
         // schema_name is intentionally absent — server-generated only.
     ];
@@ -41,6 +53,7 @@ class Tenant extends Model
     ];
 
     protected $casts = [
+        'qid_expires_at' => 'date',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];
@@ -57,6 +70,59 @@ class Tenant extends Model
     public function migrations(): HasMany
     {
         return $this->hasMany(TenantMigration::class, 'tenant_id');
+    }
+
+    public function identifiers(): HasMany
+    {
+        return $this->hasMany(TenantIdentifier::class, 'tenant_id');
+    }
+
+    public function classification(): array
+    {
+        return self::classificationFor($this->legal_type, $this->activity_type);
+    }
+
+    public static function classificationFor(?string $legalType, ?string $activityType): array
+    {
+        if ($legalType === null || $legalType === '') {
+            return [
+                'classification' => self::CLASSIFICATION_NEEDS_REVIEW,
+                'classification_reason' => 'missing_legal_type',
+            ];
+        }
+
+        if (! in_array($legalType, ['individual', 'organization'], true)) {
+            return [
+                'classification' => self::CLASSIFICATION_NEEDS_REVIEW,
+                'classification_reason' => 'unsupported_legal_type',
+            ];
+        }
+
+        if ($activityType === null || $activityType === '') {
+            return [
+                'classification' => self::CLASSIFICATION_NEEDS_REVIEW,
+                'classification_reason' => 'missing_activity_type',
+            ];
+        }
+
+        if (! in_array($activityType, ['contractor', 'consultant', 'both'], true)) {
+            return [
+                'classification' => self::CLASSIFICATION_NEEDS_REVIEW,
+                'classification_reason' => 'unsupported_activity_type',
+            ];
+        }
+
+        $classification = match ([$legalType, $activityType]) {
+            ['organization', 'contractor'] => self::CLASSIFICATION_CONTRACTING_COMPANY,
+            ['individual', 'contractor'] => self::CLASSIFICATION_INDIVIDUAL_CONTRACTOR,
+            ['organization', 'consultant'] => self::CLASSIFICATION_ENGINEERING_CONSULTANCY,
+            default => null,
+        };
+
+        return [
+            'classification' => $classification ?? self::CLASSIFICATION_NEEDS_REVIEW,
+            'classification_reason' => $classification === null ? 'unsupported_combination' : null,
+        ];
     }
 
     // -------------------------------------------------------------------------

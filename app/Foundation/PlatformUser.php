@@ -5,7 +5,9 @@ namespace App\Foundation;
 use Illuminate\Auth\Authenticatable;
 use Illuminate\Contracts\Auth\Authenticatable as AuthenticatableContract;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Laravel\Sanctum\HasApiTokens;
 use Laravel\Sanctum\NewAccessToken;
@@ -54,6 +56,61 @@ class PlatformUser extends Model implements AuthenticatableContract
     public function isActive(): bool
     {
         return $this->is_active === true;
+    }
+
+    public function platformRoles(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            PlatformRole::class,
+            'platform_user_roles',
+            'platform_user_id',
+            'platform_role_id'
+        );
+    }
+
+    public function hasPlatformPermission(string $permission): bool
+    {
+        if (! self::platformIamSchemaAvailable()) {
+            return false;
+        }
+
+        return $this->platformRoles()
+            ->whereHas('permissions', fn ($query) => $query->where('name', $permission))
+            ->exists();
+    }
+
+    public static function platformIamSchemaAvailable(): bool
+    {
+        foreach ([
+            'platform_roles',
+            'platform_permissions',
+            'platform_role_permissions',
+            'platform_user_roles',
+        ] as $table) {
+            if (! Schema::connection('mysql')->hasTable($table)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    public function platformPermissionNames(): array
+    {
+        if (! self::platformIamSchemaAvailable()) {
+            return [];
+        }
+
+        return $this->platformRoles()
+            ->with('permissions:id,name')
+            ->get()
+            ->flatMap(fn (PlatformRole $role) => $role->permissions->pluck('name'))
+            ->unique()
+            ->values()
+            ->all();
     }
 
     // =========================================================================

@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Tests\Feature\Platform;
 
 use App\Foundation\PlatformUser;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
@@ -26,23 +25,34 @@ use Tests\TestCase;
  *  PCP-08 — Inactive operator is rejected by middleware (403).
  *  PCP-09 — new_password identical to current_password returns 422.
  *  PCP-10 — Response body does NOT contain password or hash.
- *  PCP-11 — Existing PATs are NOT revoked after password change.
+ *  PCP-11 — Existing PATs are revoked after password change.
  *
- * Uses DatabaseTransactions on 'mysql' only — no tenant schema touched.
- * Never connects to production database.
+ * Configures the named mysql connection as a fresh in-memory SQLite database
+ * before any database operation. The connection is verified in setUp().
  */
 class PlatformChangePasswordTest extends TestCase
 {
-    use DatabaseTransactions;
-
-    protected function connectionsToTransact(): array
-    {
-        return ['mysql'];
-    }
-
     protected function setUp(): void
     {
         parent::setUp();
+
+        config([
+            'database.connections.mysql.driver' => 'sqlite',
+            'database.connections.mysql.database' => ':memory:',
+            'database.connections.mysql.prefix' => '',
+            'database.connections.mysql.foreign_key_constraints' => true,
+        ]);
+        DB::purge('mysql');
+
+        $connection = DB::connection('mysql');
+        $this->assertSame('sqlite', $connection->getDriverName());
+        $this->assertSame(':memory:', $connection->getConfig('database'));
+        $this->assertSame(
+            'sqlite',
+            $connection->getPdo()->getAttribute(\PDO::ATTR_DRIVER_NAME),
+            'Refusing to run password tests unless the actual PDO connection is SQLite.',
+        );
+
         $this->ensurePlatformUsersTableExists();
         $this->ensurePlatformPATTableExists();
     }
@@ -134,6 +144,14 @@ class PlatformChangePasswordTest extends TestCase
 
         $response->assertStatus(422);
         $response->assertJsonValidationErrors(['current_password']);
+        $this->assertTrue(Hash::check(
+            'platform-secret-123',
+            DB::connection('mysql')->table('platform_users')->where('id', $operator->id)->value('password'),
+        ));
+        $this->app['auth']->forgetGuards();
+        $this->getJson('/api/platform/auth/me', [
+            'Authorization' => 'Bearer '.$token,
+        ])->assertOk();
     }
 
     // =========================================================================
@@ -256,29 +274,46 @@ class PlatformChangePasswordTest extends TestCase
     }
 
     // =========================================================================
-    // PCP-11 — Existing PATs are NOT revoked after password change
+    // PCP-11 — Existing PATs are revoked after password change
     // =========================================================================
 
     #[Test]
-    public function existing_pats_are_not_revoked_after_password_change(): void
+    public function existing_pats_are_revoked_after_password_change(): void
     {
         $operator = $this->makePlatformUser();
-        $token    = $operator->createPlatformToken('platform-api', ['platform:*'])->plainTextToken;
+        $tokens = [
+            $operator->createPlatformToken('platform-api-one', ['platform:*'])->plainTextToken,
+            $operator->createPlatformToken('platform-api-two', ['platform:*'])->plainTextToken,
+            $operator->createPlatformToken('platform-api-three', ['platform:*'])->plainTextToken,
+        ];
 
         // Change password
         $this->postJson('/api/platform/auth/change-password', [
             'current_password'          => 'platform-secret-123',
             'new_password'              => 'NewSecure#2026!',
             'new_password_confirmation' => 'NewSecure#2026!',
-        ], ['Authorization' => 'Bearer ' . $token]);
+        ], ['Authorization' => 'Bearer '.$tokens[0]])->assertOk();
 
-        // Same token should still work for /me
-        $meResponse = $this->getJson('/api/platform/auth/me', [
-            'Authorization' => 'Bearer ' . $token,
-        ]);
+        $this->assertSame(
+            0,
+            DB::connection('mysql')->table('platform_personal_access_tokens')
+                ->where('tokenable_type', PlatformUser::class)
+                ->where('tokenable_id', $operator->id)
+                ->count(),
+        );
 
-        $meResponse->assertStatus(200);
-        $this->assertSame($operator->email, $meResponse->json('email'));
+        foreach ($tokens as $oldToken) {
+            $this->app['auth']->forgetGuards();
+            $this->getJson('/api/platform/auth/me', [
+                'Authorization' => 'Bearer '.$oldToken,
+            ])->assertUnauthorized();
+        }
+
+        $newLogin = $this->postJson('/api/platform/auth/login', [
+            'email' => $operator->email,
+            'password' => 'NewSecure#2026!',
+        ])->assertOk();
+        $this->assertNotEmpty($newLogin->json('token'));
     }
 
     // =========================================================================

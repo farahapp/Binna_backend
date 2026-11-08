@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Http\Controllers\IAM;
 
 use App\Audit\AuditService;
+use App\Foundation\Tenant;
 use App\Foundation\TenantContext;
+use App\Foundation\TenantIdentifier;
 use App\Http\Controllers\Controller;
 use App\IAM\User;
 use Illuminate\Http\JsonResponse;
@@ -51,6 +53,7 @@ class AuthController extends Controller
             'email'    => ['required', 'email'],
             'password' => ['required', 'string'],
         ]);
+        $this->ensureLegacyLoginIdentifier($request);
 
         // tenant_slug from the resolved TenantContext — authoritative source (OD-001).
         $tenantContext = app(TenantContext::class);
@@ -108,6 +111,7 @@ class AuthController extends Controller
         return response()->json([
             'token' => $token,
             'token_type' => 'Bearer',
+            'tenant_slug' => $tenantSlug,
         ]);
     }
 
@@ -207,13 +211,15 @@ class AuthController extends Controller
     /**
      * SPA Login: validate credentials and create a session (no PAT issued).
      *
-     * POST /api/auth/spa/login
-     * Headers: X-Tenant: {slug}, X-XSRF-TOKEN: {csrf}
-     * Body: { email, password }
+     * POST /api/auth/spa/login          ← legacy path (X-Tenant header required)
+     * POST /api/auth/tenant/spa/login   ← PROD-TENANT-SPA-FIX-001 path (resolution_token, no X-Tenant)
+     * Headers: X-XSRF-TOKEN: {csrf}
+     * Body: { email, password, resolution_token? }
      *
      * Uses Sanctum SPA Cookie auth — session stored server-side.
      * Client receives HttpOnly session cookie. No token in response body.
      * Tenant context resolved by ResolveTenantContext middleware (OD-001).
+     * PATH C: when resolution_token is present, X-Tenant header is NOT required.
      */
     public function spaLogin(Request $request): JsonResponse
     {
@@ -221,6 +227,7 @@ class AuthController extends Controller
             'email'    => ['required', 'email'],
             'password' => ['required', 'string'],
         ]);
+        $this->ensureLegacyLoginIdentifier($request);
 
         $tenantContext = app(TenantContext::class);
         $tenantSlug    = $tenantContext->slug;
@@ -256,6 +263,13 @@ class AuthController extends Controller
         Auth::guard('web')->login($user, $request->boolean('remember'));
         $request->session()->regenerate();
 
+        // PATH C (ResolveTenantContext) — store the DB-resolved tenant slug so that
+        // subsequent SPA requests can resolve tenant context from the session alone,
+        // without requiring an X-Tenant header on every request.
+        // Value comes from the server-verified TenantContext — never from client input.
+        // spaLogout() calls session()->invalidate() which removes this entry automatically.
+        $request->session()->put('_spa_tenant_slug', $tenantSlug);
+
         $this->auditService->logEvent(
             'auth.spa_login',
             (string) $user->id,
@@ -273,6 +287,25 @@ class AuthController extends Controller
                 'email' => $user->email,
             ],
         ], 200);
+    }
+
+    /**
+     * Older Flutter clients send only X-Tenant, so validate the tenant's required
+     * CR/QID record server-side before preserving that login contract.
+     */
+    private function ensureLegacyLoginIdentifier(Request $request): void
+    {
+        if (! $request->routeIs('auth.login', 'auth.spa.login')) {
+            return;
+        }
+
+        $tenantContext = app(TenantContext::class);
+        $tenant = Tenant::on('mysql')->find($tenantContext->id);
+        if ($tenant === null || ! TenantIdentifier::hasValidLoginIdentifierForTenant($tenant)) {
+            throw ValidationException::withMessages([
+                'tenant' => ['Unable to continue with the provided details.'],
+            ]);
+        }
     }
 
     /**
