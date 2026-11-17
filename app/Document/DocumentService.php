@@ -2,6 +2,7 @@
 declare(strict_types=1);
 namespace App\Document;
 
+use App\Foundation\TenantContext;
 use Illuminate\Database\Eloquent\Collection;
 
 /**
@@ -95,6 +96,15 @@ class DocumentService
 
         if ($document === null) {
             throw new \InvalidArgumentException("Document [{$documentId}] not found.");
+        }
+
+        // Defense-in-depth: when a TenantContext is bound (HTTP request), enforce
+        // tenant isolation at the service layer as well as the controller layer.
+        if (app()->bound(TenantContext::class)) {
+            $tenantSlug = app(TenantContext::class)->slug;
+            if ($document->tenant_slug !== $tenantSlug) {
+                throw new \InvalidArgumentException("Document [{$documentId}] not found.");
+            }
         }
 
         return $document;
