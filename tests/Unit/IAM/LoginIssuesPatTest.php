@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit\IAM;
 
+use App\Foundation\TenantIdentifier;
 use App\IAM\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Config;
@@ -65,13 +66,28 @@ class LoginIssuesPatTest extends TestCase
         // DB::purge('tenant') is intentionally NOT called here — purging would destroy
         // the transaction that RefreshDatabase opened on the tenant connection.
 
-        DB::connection('mysql')->table('tenants')->insertOrIgnore([
-            'slug'        => 'test-tenant',
-            'name'        => 'Test Tenant',
-            'schema_name' => 'binaa2_testing',
-            'status'      => 'active',
-            'created_at'  => now(),
-            'updated_at'  => now(),
+        DB::connection('mysql')->table('tenants')->updateOrInsert(
+            ['slug' => 'test-tenant'],
+            [
+                'name'          => 'Test Tenant',
+                'schema_name'   => 'binaa2_testing',
+                'status'        => 'active',
+                'legal_type'    => 'organization',
+                'activity_type' => 'contractor',
+                'created_at'    => now(),
+                'updated_at'    => now(),
+            ]
+        );
+
+        $tenantId = DB::connection('mysql')->table('tenants')
+            ->where('slug', 'test-tenant')
+            ->value('id');
+
+        TenantIdentifier::on('mysql')->create([
+            'tenant_id' => $tenantId,
+            'type' => 'cr',
+            'number' => 'CR-UNIT-' . \Illuminate\Support\Str::uuid(),
+            'validity_status' => 'valid',
         ]);
     }
 

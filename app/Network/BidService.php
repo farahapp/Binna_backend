@@ -146,12 +146,47 @@ class BidService
             throw new \RuntimeException('Contractor NetworkProfile is not active.');
         }
         $allowed = $tender->participant_types;
-        if (is_array($allowed) && $allowed !== [] && ! in_array($profile->profile_type, $allowed, true)) {
-            throw new \RuntimeException('Contractor NetworkProfile is not eligible for this Tender.');
+        if (is_array($allowed) && $allowed !== []) {
+            $profileType = $profile->profile_type;
+            $aliases = [$profileType];
+            // Backward compatibility: engineer ↔ consultant
+            if ($profileType === 'engineer') {
+                $aliases[] = 'consultant';
+            }
+            if ($profileType === 'consultant') {
+                $aliases[] = 'engineer';
+            }
+            $eligible = count(array_intersect($aliases, $allowed)) > 0;
+            if (! $eligible) {
+                throw new \RuntimeException('NetworkProfile is not eligible for this Tender.');
+            }
         }
-        if (! $tender->isPublic() && $tender->managed_by_tenant_slug !== $profile->managed_by_tenant_slug) {
-            throw new \RuntimeException('Contractor is not authorized for this Tender visibility.');
+        if ($tender->isPublic() || $tender->managed_by_tenant_slug === $profile->managed_by_tenant_slug) {
+            return;
         }
+
+        // Invited visibility: require accepted (or pending-for-view) invitation for this profile.
+        if ($tender->isInvited() || $tender->isPrivate() || $tender->isMatched()) {
+            $hasInvite = NetworkTenderInvitation::query()
+                ->where('tender_id', $tender->id)
+                ->where('invitee_network_profile_id', $profile->id)
+                ->whereIn('status', ['accepted', 'pending'])
+                ->exists();
+
+            if ($hasInvite && ($tender->isInvited() || $tender->isMatched())) {
+                // Bidding requires acceptance for invited/matched tenders.
+                $accepted = NetworkTenderInvitation::query()
+                    ->where('tender_id', $tender->id)
+                    ->where('invitee_network_profile_id', $profile->id)
+                    ->where('status', 'accepted')
+                    ->exists();
+                if ($accepted) {
+                    return;
+                }
+            }
+        }
+
+        throw new \RuntimeException('Contractor is not authorized for this Tender visibility.');
     }
 
     private function assertBidOwnership(NetworkBid $bid, string $tenantSlug): void

@@ -57,6 +57,17 @@ class PurchaseRequestService
     }
 
     /**
+     * listPurchaseRequests — paginated list in the active tenant schema.
+     *
+     * Tenant isolation: PurchaseRequest uses connection='tenant' (OD-001).
+     * Phase 5 Functional Parity — mirrors listPurchaseOrders.
+     */
+    public function listPurchaseRequests(int $perPage = 20): \Illuminate\Contracts\Pagination\LengthAwarePaginator
+    {
+        return PurchaseRequest::orderByDesc('created_at')->paginate($perPage);
+    }
+
+    /**
      * createPurchaseRequest — create a new PurchaseRequest in draft status.
      *
      * @param array{

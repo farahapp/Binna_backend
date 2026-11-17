@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Network;
 
+use App\Foundation\TenantContext;
 use App\Http\Controllers\Controller;
 use App\Network\BidService;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -24,7 +25,7 @@ class BidController extends Controller
                 'content' => 'required|array|min:1',
                 'reason' => 'nullable|string|max:1000',
             ]);
-            $bid = $this->service->submit($data, (string) auth()->id(), (string) $request->header('X-Tenant', ''));
+            $bid = $this->service->submit($data, (string) auth()->id(), app(TenantContext::class)->slug);
             return response()->json(['data' => $bid->toArray()], 201);
         } catch (ValidationException $e) {
             return response()->json(['errors' => $e->errors()], 422);
@@ -38,7 +39,7 @@ class BidController extends Controller
     public function show(Request $request, string $id): JsonResponse
     {
         try {
-            $bid = $this->service->get($id, (string) $request->header('X-Tenant', ''));
+            $bid = $this->service->get($id, app(TenantContext::class)->slug);
             return response()->json(['data' => $bid->toArray()]);
         } catch (ModelNotFoundException) {
             return response()->json(['error' => 'Network Bid not found.'], 404);
@@ -54,7 +55,7 @@ class BidController extends Controller
                 'content' => 'required|array|min:1',
                 'reason' => 'nullable|string|max:1000',
             ]);
-            $bid = $this->service->revise($id, $data, (string) auth()->id(), (string) $request->header('X-Tenant', ''));
+            $bid = $this->service->revise($id, $data, (string) auth()->id(), app(TenantContext::class)->slug);
             return response()->json(['data' => $bid->toArray()]);
         } catch (ValidationException $e) {
             return response()->json(['errors' => $e->errors()], 422);
@@ -69,7 +70,7 @@ class BidController extends Controller
     {
         try {
             $data = $request->validate(['reason' => 'nullable|string|max:1000']);
-            $bid = $this->service->withdraw($id, $data['reason'] ?? null, (string) auth()->id(), (string) $request->header('X-Tenant', ''));
+            $bid = $this->service->withdraw($id, $data['reason'] ?? null, (string) auth()->id(), app(TenantContext::class)->slug);
             return response()->json(['data' => $bid->toArray()]);
         } catch (ValidationException $e) {
             return response()->json(['errors' => $e->errors()], 422);

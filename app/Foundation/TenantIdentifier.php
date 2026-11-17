@@ -6,6 +6,7 @@ namespace App\Foundation;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use App\Registration\TenantRegistrationRequest;
 
 class TenantIdentifier extends Model
 {
@@ -53,6 +54,7 @@ class TenantIdentifier extends Model
 
     protected $fillable = [
         'tenant_id',
+        'registration_request_id',
         'type',
         'number',
         'expires_at',
@@ -89,5 +91,10 @@ class TenantIdentifier extends Model
     public function tenant(): BelongsTo
     {
         return $this->belongsTo(Tenant::class, 'tenant_id');
+    }
+
+    public function registrationRequest(): BelongsTo
+    {
+        return $this->belongsTo(TenantRegistrationRequest::class, 'registration_request_id');
     }
 }

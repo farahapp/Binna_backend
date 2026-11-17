@@ -172,7 +172,7 @@ class NetworkProfileVerificationService
         if (empty($evidence['business_registration'])) {
             throw new \InvalidArgumentException('Legal/business registration evidence is required.');
         }
-        if (in_array($profile->profile_type, ['engineer', 'contractor', 'main_contractor'], true)
+        if (in_array($profile->profile_type, ['engineer', 'consultant', 'contractor', 'main_contractor'], true)
             && empty($evidence['professional_license'])) {
             throw new \InvalidArgumentException('Professional classification/license evidence is required for this participant type.');
         }

@@ -54,6 +54,25 @@ class PurchaseRequestController extends Controller
     }
 
     /**
+     * GET /api/v1/procurement/purchase-requests
+     * Paginated list of Purchase Requests in the active tenant schema.
+     */
+    public function list(Request $request): JsonResponse
+    {
+        $result = $this->purchaseRequestService->listPurchaseRequests();
+
+        return response()->json([
+            'data' => array_map(fn ($pr) => $pr->toArray(), $result->items()),
+            'meta' => [
+                'current_page' => $result->currentPage(),
+                'last_page'    => $result->lastPage(),
+                'per_page'     => $result->perPage(),
+                'total'        => $result->total(),
+            ],
+        ], 200);
+    }
+
+    /**
      * GET /api/v1/procurement/purchase-requests/{id}
      * Retrieve a Purchase Request by ID.
      */

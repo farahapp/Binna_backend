@@ -86,6 +86,50 @@ class DatabaseConnectivityTest extends TestCase
             "Tenant connection: expected phpunit_3307@..., got {$usr}");
     }
 
+    public function test_provisioning_connection_is_local_non_root_and_has_no_global_privileges_or_grant_option(): void
+    {
+        $previousArgv = $_SERVER['argv'] ?? null;
+        $_SERVER['argv'] = ['artisan', 'tenant:provision-registration'];
+
+        try {
+            $this->app->make(\App\Foundation\ProvisioningConnectionAccess::class)
+                ->runForRegistrationCommand(function (): void {
+                    foreach (['tenant', 'mysql_provisioning'] as $name) {
+                        $connection = DB::connection($name);
+                        $row = $connection->selectOne(
+                            'SELECT @@port AS port, DATABASE() AS db, VERSION() AS ver, CURRENT_USER() AS usr'
+                        );
+
+                        $this->assertNotNull($row, "Connection {$name} returned no result.");
+                        $this->assertSame(3307, (int) $row->port, "Connection {$name} is not on isolated port 3307.");
+                        $this->assertSame('binaa2_testing', $row->db);
+                        $this->assertStringStartsWith('9.3.', $row->ver);
+                        $this->assertFalse(str_starts_with(strtolower($row->usr), 'root@'));
+
+                        $grantRows = $connection->select('SHOW GRANTS');
+                        $grants = array_map(
+                            static fn (object $grantRow): string => (string) array_values((array) $grantRow)[0],
+                            $grantRows,
+                        );
+                        $this->assertNotEmpty($grants);
+                        $this->assertDoesNotMatchRegularExpression('/\bGRANT OPTION\b/i', implode("\n", $grants));
+
+                        foreach ($grants as $grant) {
+                            if (preg_match('/\bON\s+\*\.\*/i', $grant)) {
+                                $this->assertMatchesRegularExpression('/^GRANT USAGE ON \*\.\*/i', $grant);
+                            }
+                        }
+                    }
+                });
+        } finally {
+            if ($previousArgv === null) {
+                unset($_SERVER['argv']);
+            } else {
+                $_SERVER['argv'] = $previousArgv;
+            }
+        }
+    }
+
     /**
      * Confirm no connection resolves to port 3306 (protected instance).
      */

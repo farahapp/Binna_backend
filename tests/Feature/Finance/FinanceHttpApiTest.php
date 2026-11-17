@@ -137,6 +137,37 @@ class FinanceHttpApiTest extends TestCase
         $response->assertJsonFragment(['status' => 'active']);
     }
 
+    /**
+     * Core Ecosystem Phase A — TENANT ISOLATION:
+     * Client-supplied tenant_slug must not override TenantContext authority.
+     *
+     * @test
+     */
+    public function create_cash_account_ignores_forged_client_tenant_slug(): void
+    {
+        $response = $this->withHeaders($this->authHeaders())
+            ->postJson('/api/v1/finance/cash-accounts', [
+                'tenant_slug'  => 'forged-other-tenant',
+                'account_code' => 'CASH-ISO-001',
+                'name'         => 'Isolation Probe Cash',
+                'currency'     => 'QAR',
+            ]);
+
+        $response->assertStatus(201);
+        $response->assertJsonFragment(['account_code' => 'CASH-ISO-001']);
+        $response->assertJsonMissing(['tenant_slug' => 'forged-other-tenant']);
+
+        $this->assertDatabaseHas('cash_accounts', [
+            'account_code' => 'CASH-ISO-001',
+            'tenant_slug'  => $this->tenantSlug,
+        ], 'tenant');
+
+        $this->assertDatabaseMissing('cash_accounts', [
+            'account_code' => 'CASH-ISO-001',
+            'tenant_slug'  => 'forged-other-tenant',
+        ], 'tenant');
+    }
+
     /** @test */
     public function create_cash_account_returns_422_for_missing_fields(): void
     {

@@ -47,12 +47,12 @@ class TenantMiddlewareTest extends TestCase
     // -------------------------------------------------------------------------
 
     /** @test */
-    public function missing_x_tenant_header_returns_400(): void
+    public function missing_x_tenant_header_returns_401(): void
     {
         $response = $this->getJson('/test-tenant-route');
 
-        $response->assertStatus(400);
-        $response->assertJsonFragment(['error' => 'X-Tenant header is required.']);
+        $response->assertStatus(401);
+        $response->assertJsonFragment(['message' => 'Unauthenticated.']);
     }
 
     /** @test */

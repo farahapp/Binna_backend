@@ -492,6 +492,13 @@ class NetworkEvaluationTest extends TestCase
 
     public function test_evaluation_tables_are_in_global_mysql_schema(): void
     {
+        if (filter_var(env('BINAA2_TEST_ISOLATED_MYSQL', false), FILTER_VALIDATE_BOOL)) {
+            // Single-schema local harness (docs/BINAA2_PHPUNIT_LOCAL_HARNESS.md):
+            // 'tenant' intentionally points at the same isolated schema as 'mysql',
+            // so the physical cross-schema separation cannot be evaluated here.
+            // It is proven by the provisioning/schema-per-tenant suite instead.
+            $this->markTestSkipped('Single-schema harness: tenant and mysql share one isolated schema.');
+        }
         $this->assertTrue(
             Schema::connection('mysql')->hasTable('network_evaluations'),
             'network_evaluations must exist in global (mysql) schema.'

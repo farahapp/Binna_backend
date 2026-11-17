@@ -342,14 +342,15 @@ class AuthSmokeTest extends TestCase
     }
 
     /** @test */
-    public function login_returns_400_without_x_tenant_header(): void
+    public function login_returns_401_without_x_tenant_header(): void
     {
         $response = $this->postJson('/api/auth/login', [
             'email'    => 'auth-smoke@binaa.test',
             'password' => self::$password,
         ]);
 
-        $response->assertStatus(400);
+        $response->assertStatus(401);
+        $response->assertJsonFragment(['message' => 'Unauthenticated.']);
     }
 
     // =========================================================================

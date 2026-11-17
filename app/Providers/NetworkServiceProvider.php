@@ -58,6 +58,18 @@ class NetworkServiceProvider extends ServiceProvider
                 $app->make(\App\Notification\NotificationService::class),
             );
         });
+
+        $this->app->singleton(\App\Network\InvitationService::class, function ($app) {
+            return new \App\Network\InvitationService(
+                $app->make(\App\Audit\AuditService::class),
+            );
+        });
+
+        $this->app->singleton(\App\Network\ClarificationService::class, function ($app) {
+            return new \App\Network\ClarificationService(
+                $app->make(\App\Audit\AuditService::class),
+            );
+        });
     }
 
     public function boot(): void

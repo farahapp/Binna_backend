@@ -159,7 +159,7 @@ class TenantProvisionCommandTest extends TestCase
                 '--name' => 'Prod Tenant',
             ])
                 ->assertFailed()
-                ->expectsOutputToContain('--confirm');
+                ->expectsOutputToContain('approved registration');
         } finally {
             // Restore testing environment.
             app()->detectEnvironment(fn () => 'testing');
@@ -171,18 +171,13 @@ class TenantProvisionCommandTest extends TestCase
     // -------------------------------------------------------------------------
 
     /** @test */
-    public function it_calls_provisioner_in_production_when_confirm_flag_is_passed(): void
+    public function it_blocks_legacy_direct_provisioning_in_production_even_with_confirm(): void
     {
         app()->detectEnvironment(fn () => 'production');
 
         try {
-            $mockTenant = $this->makeMockTenant('prod-confirmed', 'Prod Confirmed');
-
             $mock = \Mockery::mock(TenantProvisioner::class);
-            $mock->shouldReceive('provision')
-                ->once()
-                ->with('prod-confirmed', 'Prod Confirmed')
-                ->andReturn($mockTenant);
+            $mock->shouldNotReceive('provision');
 
             $this->app->instance(TenantProvisioner::class, $mock);
 
@@ -191,8 +186,8 @@ class TenantProvisionCommandTest extends TestCase
                 '--name'    => 'Prod Confirmed',
                 '--confirm' => true,
             ])
-                ->assertSuccessful()
-                ->expectsOutputToContain('prod-confirmed');
+                ->assertFailed()
+                ->expectsOutputToContain('approved registration');
         } finally {
             app()->detectEnvironment(fn () => 'testing');
         }

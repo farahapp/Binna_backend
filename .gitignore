@@ -131,3 +131,27 @@ yarn-error.log
 /storage/notif_results2.xml
 _provision_platform_test_user.php  
 _setup_platform_e2e.ps1  
+
+.env.testing.local
+phpunit.local.xml.bak
+
+
+.fixture_password.local
+.env.testing.local
+
+# --- Task 24: local debug/junk artifacts (not for release) ---
+/$after
+/fetchColumn()
+/getMessage()).PHP_EOL
+/.env.bootstrap.example
+/.env.e01test
+/.laravel_serve.log
+/_*.php
+/_*.ps1
+/deployed_api.php
+/network_suite_run*.txt
+/route_platform.txt
+/wait_and_collect.bat
+/phpunit.local.xml
+/phpunit.local-mysql.xml
+/phpunit.xml.bak

@@ -36,6 +36,15 @@ class IamMigrator
     private const MIGRATION_USERS = '0001_01_01_000000_create_users_table';
     private const MIGRATION_IAM   = '2026_09_24_000001_create_iam_tables';
 
+    /**
+     * DEC-BI-IAM-001 (owner-approved, 2026-11-17): the tenant permission
+     * catalog currently contains exactly one permission — 'bi.dashboard.view'
+     * — and it is linked to the tenant_admin role ONLY. Do not extend the
+     * catalog here without a separate, explicit decision.
+     */
+    public const PERMISSION_BI_DASHBOARD_VIEW = 'bi.dashboard.view';
+    public const ROLE_TENANT_ADMIN = 'tenant_admin';
+
     /** Batch number — follows TenantBaselineMigrator's batch 1. */
     private const BATCH = 2;
 
@@ -60,6 +69,9 @@ class IamMigrator
             throw $e;
         } finally {
             DB::purge($connectionName);
+            $connections = Config::get('database.connections');
+            unset($connections[$connectionName]);
+            Config::set('database.connections', $connections);
         }
     }
 
@@ -76,7 +88,7 @@ class IamMigrator
     {
         $connectionName = 'tenant_iam_' . $schemaName;
 
-        $base = Config::get('database.connections.mysql_provisioning');
+        $base = Config::get('database.provisioning_connection');
         Config::set("database.connections.{$connectionName}", array_merge($base, [
             'database' => $schemaName,
         ]));
@@ -168,6 +180,13 @@ class IamMigrator
             });
         }
 
+        // ── tenant permission catalog (DEC-BI-IAM-001) ────────────────────────
+        // Seed the catalog and link it to tenant_admin only. Idempotent, so it
+        // also backfills EXISTING tenant schemas whenever the approved
+        // idempotent IamMigrator run happens (new tenants get it through
+        // provisioning; existing tenants through any sanctioned re-run).
+        $this->applyTenantPermissionCatalog($connectionName);
+
         // ── personal_access_tokens ────────────────────────────────────────────
         // Preserve an existing table; provisioning must remain non-destructive.
         if (! $schema->hasTable('personal_access_tokens')) {
@@ -182,6 +201,75 @@ class IamMigrator
                 $table->timestamps();
             });
         }
+    }
+
+    /**
+     * Seed the tenant permission catalog on an ALREADY-CONFIGURED tenant
+     * connection and link it to tenant_admin only (DEC-BI-IAM-001).
+     *
+     * Public so the sanctioned backfill for existing tenants can inject a
+     * connection without touching the guarded provisioning context: the caller
+     * owns the connection lifecycle (this method never builds or purges it).
+     *
+     * Idempotent: insertOrIgnore + guarded link — safe to re-run across
+     * provisioning retries, upgrades and backfills; never duplicates rows and
+     * never grants the permission to any role other than tenant_admin.
+     */
+    public function seedPermissionCatalogOnConnection(string $connectionName): void
+    {
+        $conn = DB::connection($connectionName);
+
+        // 1) The single catalog permission (no other permission is seeded).
+        $conn->table('permissions')->insertOrIgnore([
+            'name'       => self::PERMISSION_BI_DASHBOARD_VIEW,
+            'guard_name' => 'api',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        // 2) Ensure the tenant_admin role exists — mirrors applyIamTables'
+        //    insertOrIgnore seed — so tenants provisioned before the catalog
+        //    decision can still be linked. No other role is created.
+        $conn->table('roles')->insertOrIgnore([
+            'name'       => self::ROLE_TENANT_ADMIN,
+            'guard_name' => 'api',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        // 3) Link the permission to tenant_admin ONLY — never to employee or
+        //    other roles, and never directly to users.
+        $permissionId = $conn->table('permissions')
+            ->where('name', self::PERMISSION_BI_DASHBOARD_VIEW)
+            ->value('id');
+        $adminRoleId = $conn->table('roles')
+            ->where('name', self::ROLE_TENANT_ADMIN)
+            ->value('id');
+
+        if ($permissionId === null || $adminRoleId === null) {
+            return;
+        }
+
+        $alreadyLinked = $conn->table('role_has_permissions')
+            ->where('permission_id', $permissionId)
+            ->where('role_id', $adminRoleId)
+            ->exists();
+
+        if (! $alreadyLinked) {
+            $conn->table('role_has_permissions')->insert([
+                'permission_id' => $permissionId,
+                'role_id'       => $adminRoleId,
+            ]);
+        }
+    }
+
+    /**
+     * Apply the tenant permission catalog on the temporary IAM connection
+     * created for the tenant schema (DEC-BI-IAM-001).
+     */
+    private function applyTenantPermissionCatalog(string $connectionName): void
+    {
+        $this->seedPermissionCatalogOnConnection($connectionName);
     }
 
     /**

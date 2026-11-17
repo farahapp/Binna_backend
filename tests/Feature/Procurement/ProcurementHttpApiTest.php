@@ -418,4 +418,48 @@ class ProcurementHttpApiTest extends TestCase
         $response->assertStatus(200);
         $this->assertEquals('submitted', $response->json('status'));
     }
+
+    /** @test */
+    public function can_list_purchase_requests_with_meta(): void
+    {
+        $this->postJson('/api/v1/procurement/purchase-requests', [
+            'title' => 'List PR A',
+        ], $this->authHeaders())->assertStatus(201);
+        $this->postJson('/api/v1/procurement/purchase-requests', [
+            'title' => 'List PR B',
+        ], $this->authHeaders())->assertStatus(201);
+
+        $response = $this->getJson('/api/v1/procurement/purchase-requests', $this->authHeaders());
+        $response->assertStatus(200);
+        $this->assertIsArray($response->json('data'));
+        $this->assertGreaterThanOrEqual(2, count($response->json('data')));
+        $this->assertArrayHasKey('current_page', $response->json('meta'));
+        $this->assertArrayHasKey('total', $response->json('meta'));
+    }
+
+    /** @test */
+    public function can_list_rfqs_with_meta(): void
+    {
+        $this->postJson('/api/v1/procurement/rfqs', [
+            'title' => 'List RFQ A',
+        ], $this->authHeaders())->assertStatus(201);
+        $this->postJson('/api/v1/procurement/rfqs', [
+            'title' => 'List RFQ B',
+        ], $this->authHeaders())->assertStatus(201);
+
+        $response = $this->getJson('/api/v1/procurement/rfqs', $this->authHeaders());
+        $response->assertStatus(200);
+        $this->assertIsArray($response->json('data'));
+        $this->assertGreaterThanOrEqual(2, count($response->json('data')));
+        $this->assertArrayHasKey('current_page', $response->json('meta'));
+        $this->assertArrayHasKey('total', $response->json('meta'));
+    }
+
+    /** @test */
+    public function list_purchase_requests_requires_auth(): void
+    {
+        $this->getJson('/api/v1/procurement/purchase-requests', [
+            'X-Tenant' => $this->tenantSlug,
+        ])->assertStatus(401);
+    }
 }

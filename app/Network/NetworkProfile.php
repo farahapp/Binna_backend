@@ -22,7 +22,8 @@ use Illuminate\Database\Eloquent\Builder;
  *
  * @property string $id
  * @property string $company_name
- * @property string $profile_type  owner|engineer|contractor|main_contractor|subcontractor|supplier
+ * @property string $profile_type  owner|consultant|engineer|contractor|main_contractor|subcontractor|supplier
+ *                                 (engineer retained for backward compatibility; prefer consultant)
  * @property string $status        draft|active|suspended|deactivated
  * @property string|null $region
  * @property array|null  $specializations

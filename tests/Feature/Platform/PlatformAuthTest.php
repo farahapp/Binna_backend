@@ -238,8 +238,8 @@ class PlatformAuthTest extends TestCase
     }
 
     // =========================================================================
-    // PA-11 — EnsureFrontendRequestsAreStateful is NOT on platform routes,
-    //          but IS still registered on tenant SPA routes.
+    // PA-11 — Mobile PAT login stays stateless, while API stateful middleware
+    //          remains enabled for browser and tenant SPA requests.
     //
     // Regression guard: the fix (withoutMiddleware on platform group) must not
     // remove EnsureFrontendRequestsAreStateful from tenant routes.
@@ -251,7 +251,7 @@ class PlatformAuthTest extends TestCase
     // =========================================================================
 
     #[Test]
-    public function ensure_frontend_stateful_middleware_is_absent_from_platform_routes(): void
+    public function mobile_platform_login_explicitly_excludes_stateful_middleware(): void
     {
         /** @var \Illuminate\Routing\Router $router */
         $router = app('router');
@@ -266,8 +266,109 @@ class PlatformAuthTest extends TestCase
         $this->assertNotContains(
             \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class,
             $platformMiddleware,
-            'EnsureFrontendRequestsAreStateful must be excluded from /api/platform/* routes (CSRF-419 fix).'
+            'Mobile Platform PAT login remains stateless so native clients do not require browser CSRF.'
         );
+    }
+
+    #[Test]
+    public function platform_web_login_route_is_distinct_and_uses_the_platform_web_guard(): void
+    {
+        $routes = app('router')->getRoutes();
+        $this->assertNotNull($routes->getByName('platform.auth.web.login'));
+        $this->assertNotNull($routes->getByName('platform.auth.web.logout'));
+        $this->assertSame('session', config('auth.guards.platform-web.driver'));
+        $this->assertSame('platform_web_users', config('auth.guards.platform-web.provider'));
+        $this->assertSame(\App\Foundation\PlatformUser::class, config('auth.providers.platform_web_users.model'));
+    }
+
+    #[Test]
+    public function web_platform_login_sets_session_without_issuing_a_pat_and_logout_ends_only_that_guard(): void
+    {
+        config(['sanctum.stateful' => ['localhost:3001']]);
+        $operator = $this->makePlatformUser();
+
+        $login = $this->postJson('/api/platform/auth/web/login', [
+            'email' => $operator->email,
+            'password' => 'platform-secret-123',
+        ], ['Origin' => 'http://localhost:3001']);
+
+        $login->assertOk()->assertJsonMissingPath('token');
+        $this->assertNotEmpty($login->headers->getCookies(), 'Browser login should return session / XSRF cookies.');
+        $this->assertDatabaseCount('platform_personal_access_tokens', 0, 'mysql');
+
+        $this->getJson('/api/platform/auth/me', ['Origin' => 'http://localhost:3001'])
+            ->assertOk()->assertJsonPath('email', $operator->email);
+
+        $this->postJson('/api/platform/auth/web/logout', [], ['Origin' => 'http://localhost:3001'])
+            ->assertOk();
+
+        $this->getJson('/api/platform/auth/me', ['Origin' => 'http://localhost:3001'])
+            ->assertUnauthorized();
+    }
+
+    #[Test]
+    public function stateful_platform_web_post_without_csrf_token_returns_419(): void
+    {
+        config(['sanctum.stateful' => ['localhost:3001']]);
+        app()->instance('env', 'local');
+        $operator = $this->makePlatformUser();
+
+        $this->postJson('/api/platform/auth/web/login', [
+            'email' => $operator->email,
+            'password' => 'platform-secret-123',
+        ], ['Origin' => 'http://localhost:3001'])
+            ->assertStatus(419);
+    }
+
+    #[Test]
+    public function platform_session_guard_cannot_authenticate_a_tenant_user(): void
+    {
+        $operator = $this->makePlatformUser();
+        \Illuminate\Support\Facades\Auth::guard('platform-web')->login($operator);
+
+        $this->assertSame($operator->getKey(), \Illuminate\Support\Facades\Auth::guard('platform-web')->user()->getKey());
+        $this->assertNull(\Illuminate\Support\Facades\Auth::guard('api')->user());
+        $this->assertSame(\App\Foundation\PlatformUser::class, config('auth.providers.platform_web_users.model'));
+    }
+
+    #[Test]
+    public function platform_routes_reject_guest_and_missing_platform_permission(): void
+    {
+        $this->getJson('/api/platform/users')->assertUnauthorized();
+
+        $operator = $this->makePlatformUser();
+        $this->actingAs($operator, 'platform-web')
+            ->getJson('/api/platform/users')
+            ->assertForbidden();
+    }
+
+    #[Test]
+    public function stateful_frontend_can_obtain_sanctum_csrf_cookie(): void
+    {
+        config(['sanctum.stateful' => ['localhost:3001']]);
+
+        $response = $this->get('/sanctum/csrf-cookie', [
+            'Origin' => 'http://localhost:3001',
+        ]);
+
+        $this->assertContains($response->getStatusCode(), [200, 204]);
+        $this->assertNotEmpty($response->headers->getCookies());
+        $apiGroup = app('router')->getMiddlewareGroups()['api'] ?? [];
+        $this->assertContains(\Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class, $apiGroup);
+    }
+
+    #[Test]
+    public function platform_api_cors_allows_credentials_only_for_configured_frontend_origin(): void
+    {
+        $response = $this->call('OPTIONS', '/api/platform/auth/web/login', [], [], [], [
+            'HTTP_ORIGIN' => 'http://localhost:3001',
+            'HTTP_ACCESS_CONTROL_REQUEST_METHOD' => 'POST',
+            'HTTP_ACCESS_CONTROL_REQUEST_HEADERS' => 'content-type,x-xsrf-token',
+        ]);
+
+        $response->assertNoContent();
+        $this->assertSame('true', $response->headers->get('Access-Control-Allow-Credentials'));
+        $this->assertSame('http://localhost:3001', $response->headers->get('Access-Control-Allow-Origin'));
     }
 
     #[Test]

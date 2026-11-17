@@ -56,10 +56,13 @@ class TenderService
      */
     public function createTender(array $data, string $actorId, string $tenantSlug): NetworkTender
     {
-        // Validate publisher exists
+        // Validate publisher exists and is managed by the calling tenant
         $publisher = NetworkProfile::find($data['publisher_profile_id']);
         if ($publisher === null) {
             throw new \InvalidArgumentException('Publisher network profile not found.');
+        }
+        if ($publisher->managed_by_tenant_slug !== $tenantSlug) {
+            throw new \RuntimeException('You are not authorized to publish tenders for this Network Profile.');
         }
 
         $tender = NetworkTender::create([
@@ -136,11 +139,16 @@ class TenderService
     {
         $query = NetworkTender::query();
 
-        // Visibility filter: non-publisher tenants only see public tenders by default
-        // Private/invited/matched tenders are only listed for the managing tenant
+        // Visibility: public; managed by viewer; or invited (pending/accepted) to viewer tenant
         $query->where(function ($q) use ($viewerTenantSlug) {
             $q->where('visibility', 'public')
-              ->orWhere('managed_by_tenant_slug', $viewerTenantSlug);
+              ->orWhere('managed_by_tenant_slug', $viewerTenantSlug)
+              ->orWhereIn('id', function ($sub) use ($viewerTenantSlug) {
+                  $sub->select('tender_id')
+                      ->from('network_tender_invitations')
+                      ->where('invitee_tenant_slug', $viewerTenantSlug)
+                      ->whereIn('status', ['pending', 'accepted']);
+              });
         });
 
         if (! empty($filters['status'])) {
@@ -179,6 +187,7 @@ class TenderService
     public function updateTender(string $id, array $data, string $actorId, string $tenantSlug): NetworkTender
     {
         $tender = NetworkTender::findOrFail($id);
+        $this->assertManagedByTenant($tender, $tenantSlug);
 
         if (! $tender->isDraft()) {
             throw new \RuntimeException('Only draft tenders can be updated.');
@@ -218,6 +227,7 @@ class TenderService
     public function publishTender(string $id, string $actorId, string $tenantSlug): NetworkTender
     {
         $tender = NetworkTender::findOrFail($id);
+        $this->assertManagedByTenant($tender, $tenantSlug);
 
         if (! $tender->canTransitionTo('published')) {
             throw new \RuntimeException(
@@ -249,6 +259,7 @@ class TenderService
     public function closeTender(string $id, string $actorId, string $tenantSlug): NetworkTender
     {
         $tender = NetworkTender::findOrFail($id);
+        $this->assertManagedByTenant($tender, $tenantSlug);
 
         if (! $tender->canTransitionTo('closed')) {
             throw new \RuntimeException(
@@ -270,32 +281,19 @@ class TenderService
     }
 
     /**
-     * Mark a Tender as awarded (closed → awarded).
-     * Foundation only — no award selection or workflow logic.
+     * Status-only award via PATCH is disabled.
+     * Canonical path: POST /api/v1/network/tenders/{id}/award (AwardService).
      *
-     * @throws \RuntimeException if transition is not allowed
+     * @throws \RuntimeException always — dual award path gated
      */
     public function markAwarded(string $id, string $actorId, string $tenantSlug): NetworkTender
     {
         $tender = NetworkTender::findOrFail($id);
+        $this->assertManagedByTenant($tender, $tenantSlug);
 
-        if (! $tender->canTransitionTo('awarded')) {
-            throw new \RuntimeException(
-                "Cannot mark tender as awarded with status '{$tender->status}'."
-            );
-        }
-
-        $tender->status = 'awarded';
-        $tender->save();
-
-        $this->auditService->logEvent('network.tender.awarded', $actorId, [
-            'tenant_slug'  => $tenantSlug,
-            'subject_type' => 'NetworkTender',
-            'subject_id'   => $tender->id,
-            'after'        => ['status' => 'awarded'],
-        ]);
-
-        return $tender->fresh();
+        throw new \RuntimeException(
+            'Status-only award is disabled. Use POST /api/v1/network/tenders/{id}/award to create an Award.'
+        );
     }
 
     // -------------------------------------------------------------------------
@@ -303,24 +301,46 @@ class TenderService
     // -------------------------------------------------------------------------
 
     /**
+     * Assert that the calling tenant manages this tender.
+     *
+     * @throws \RuntimeException if the caller is not the managing tenant
+     */
+    private function assertManagedByTenant(NetworkTender $tender, string $tenantSlug): void
+    {
+        if ($tender->managed_by_tenant_slug !== $tenantSlug) {
+            throw new \RuntimeException('You are not authorized to manage this Network Tender.');
+        }
+    }
+
+    /**
      * Assert that the viewer tenant has access to the given tender.
      *
      * Rules (NETWORK-ARCH-001 §4.2):
      *  - public: always accessible
      *  - private: only the managing tenant
-     *  - invited: managing tenant (full invitation workflow is a later task)
-     *  - matched: managing tenant (full matching engine is a later task)
+     *  - invited/matched: managing tenant OR invitee with pending/accepted invitation
      *
      * @throws \RuntimeException if access is denied
      */
     private function assertVisibilityAccess(NetworkTender $tender, string $viewerTenantSlug): void
     {
         if ($tender->isPublic()) {
-            return; // always accessible
+            return;
         }
 
         if ($tender->managed_by_tenant_slug === $viewerTenantSlug) {
-            return; // managing tenant always has access
+            return;
+        }
+
+        if ($tender->isInvited() || $tender->isMatched() || $tender->isPrivate()) {
+            $invited = NetworkTenderInvitation::query()
+                ->where('tender_id', $tender->id)
+                ->where('invitee_tenant_slug', $viewerTenantSlug)
+                ->whereIn('status', ['pending', 'accepted'])
+                ->exists();
+            if ($invited && ($tender->isInvited() || $tender->isMatched())) {
+                return;
+            }
         }
 
         throw new \RuntimeException(

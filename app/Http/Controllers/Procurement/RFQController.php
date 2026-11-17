@@ -53,6 +53,25 @@ class RFQController extends Controller
     }
 
     /**
+     * GET /api/v1/procurement/rfqs
+     * Paginated list of RFQs in the active tenant schema.
+     */
+    public function list(Request $request): JsonResponse
+    {
+        $result = $this->rfqService->listRFQs();
+
+        return response()->json([
+            'data' => array_map(fn ($rfq) => $rfq->toArray(), $result->items()),
+            'meta' => [
+                'current_page' => $result->currentPage(),
+                'last_page'    => $result->lastPage(),
+                'per_page'     => $result->perPage(),
+                'total'        => $result->total(),
+            ],
+        ], 200);
+    }
+
+    /**
      * GET /api/v1/procurement/rfqs/{id}
      * Retrieve an RFQ by ID.
      */

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Network;
 
+use App\Foundation\TenantContext;
 use App\Http\Controllers\Controller;
 use App\Network\AwardService;
 use Illuminate\Http\JsonResponse;
@@ -35,7 +36,7 @@ class AwardController extends Controller
         ]);
 
         $actorId    = (string) auth()->id();
-        $tenantSlug = (string) $request->header('X-Tenant', '');
+        $tenantSlug = app(TenantContext::class)->slug;
 
         try {
             $award = $this->awardService->createAward(
@@ -60,7 +61,7 @@ class AwardController extends Controller
     public function show(Request $request, string $id): JsonResponse
     {
         $actorId    = (string) auth()->id();
-        $tenantSlug = (string) $request->header('X-Tenant', '');
+        $tenantSlug = app(TenantContext::class)->slug;
 
         try {
             $award = $this->awardService->getAward($id, $actorId, $tenantSlug);
@@ -79,7 +80,7 @@ class AwardController extends Controller
     public function showByTender(Request $request, string $tenderId): JsonResponse
     {
         $actorId    = (string) auth()->id();
-        $tenantSlug = (string) $request->header('X-Tenant', '');
+        $tenantSlug = app(TenantContext::class)->slug;
 
         try {
             $award = $this->awardService->getAwardByTender($tenderId, $actorId, $tenantSlug);

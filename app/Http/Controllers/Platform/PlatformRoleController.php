@@ -32,6 +32,11 @@ class PlatformRoleController extends Controller
         $data = $this->validateRole($request, create: true);
         /** @var \App\Foundation\PlatformUser $actor */
         $actor = $request->user();
+        $permissionNames = PlatformPermission::on('mysql')
+            ->whereIn('id', $data['permission_ids'] ?? [])
+            ->pluck('name')
+            ->all();
+        $this->assertOwnerMayGrantFullIdentifierAccess($actor, $permissionNames);
 
         $role = DB::connection('mysql')->transaction(function () use ($actor, $audit, $data): PlatformRole {
             $role = PlatformRole::on('mysql')->create([
@@ -109,6 +114,7 @@ class PlatformRoleController extends Controller
                 ->whereIn('id', $data['permission_ids'])
                 ->pluck('name')
                 ->all();
+            $this->assertOwnerMayGrantFullIdentifierAccess($actor, $requestedPermissionNames);
             if (
                 $lockedRole->users()->whereKey($actor->getKey())->exists()
                 && array_diff($requestedPermissionNames, $actor->platformPermissionNames()) !== []
@@ -130,6 +136,21 @@ class PlatformRoleController extends Controller
         return response()->json([
             'role' => $role->fresh()->load('permissions:id,name,description')->loadCount('users'),
         ]);
+    }
+
+    /**
+     * @param array<int, string> $permissionNames
+     */
+    private function assertOwnerMayGrantFullIdentifierAccess(
+        \App\Foundation\PlatformUser $actor,
+        array $permissionNames,
+    ): void {
+        if (
+            in_array('platform.tenants.identifiers.view', $permissionNames, true)
+            && ! $actor->platformRoles()->where('slug', 'platform-owner')->exists()
+        ) {
+            abort(403, 'Only the Platform Owner may grant full tenant identifier access.');
+        }
     }
 
     public function destroy(int $id, PlatformAuditService $audit, Request $request): JsonResponse

@@ -96,18 +96,18 @@ class DashboardTenantContextRegressionTest extends TestCase
     /**
      * @test
      *
-     * ISOLATION: Without X-Tenant header, middleware returns 400 before
-     * TenantContext is ever bound. Confirms the middleware guard is intact.
+     * Without X-Tenant header, the middleware returns a generic 401 before
+     * TenantContext is bound, avoiding disclosure of the missing header.
      */
-    public function dashboard_returns_400_without_x_tenant_header(): void
+    public function dashboard_returns_401_without_x_tenant_header(): void
     {
         $response = $this->withHeaders([
             'Authorization' => 'Bearer ' . $this->token,
             'Accept'        => 'application/json',
         ])->getJson('/api/v1/bi/dashboard');
 
-        $response->assertStatus(400);
-        $response->assertJsonFragment(['error' => 'X-Tenant header is required.']);
+        $response->assertStatus(401);
+        $response->assertJsonFragment(['message' => 'Unauthenticated.']);
     }
 
     /**

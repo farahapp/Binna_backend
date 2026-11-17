@@ -87,18 +87,30 @@ class NetworkProfileService
     /**
      * List Network Profiles with optional filters.
      *
-     * @param array{type?: string, status?: string, region?: string} $filters
+     * E.7 P0 — Metadata isolation:
+     *  - scope=mine      → profiles managed by the viewer tenant (full fields).
+     *  - scope=directory → active profiles only as public cards (no contact/tenant internals).
+     * Default scope is directory to prevent cross-tenant private metadata leakage.
+     *
+     * @param array{type?: string, status?: string, region?: string, scope?: string} $filters
      */
-    public function listProfiles(array $filters = []): LengthAwarePaginator
+    public function listProfiles(array $filters, string $viewerTenantSlug): LengthAwarePaginator
     {
+        $scope = $filters['scope'] ?? 'directory';
         $query = NetworkProfile::query();
+
+        if ($scope === 'mine') {
+            $query->managedByTenant($viewerTenantSlug);
+            if (! empty($filters['status'])) {
+                $query->where('status', $filters['status']);
+            }
+        } else {
+            // Directory: never expose draft/suspended of other tenants.
+            $query->where('status', 'active');
+        }
 
         if (! empty($filters['type'])) {
             $query->byType($filters['type']);
-        }
-
-        if (! empty($filters['status'])) {
-            $query->where('status', $filters['status']);
         }
 
         if (! empty($filters['region'])) {
@@ -106,6 +118,57 @@ class NetworkProfileService
         }
 
         return $query->orderBy('created_at', 'desc')->paginate(20);
+    }
+
+    /**
+     * Public directory card — safe cross-tenant discovery fields only.
+     *
+     * @return array<string, mixed>
+     */
+    public function toPublicCard(NetworkProfile $profile): array
+    {
+        return [
+            'id'           => $profile->id,
+            'company_name' => $profile->company_name,
+            'profile_type' => $profile->profile_type,
+            'status'       => $profile->status,
+            'region'       => $profile->region,
+            // contact_email / contact_phone / website / description /
+            // managed_by_tenant_slug intentionally excluded (E.7 P0)
+        ];
+    }
+
+    /**
+     * Full profile for the managing tenant.
+     *
+     * @return array<string, mixed>
+     */
+    public function toOwnerArray(NetworkProfile $profile): array
+    {
+        return $profile->toArray();
+    }
+
+    /**
+     * Resolve profile for show: full if owned, public card if active foreign, else deny.
+     *
+     * @return array{mode: string, data: array<string, mixed>}
+     *
+     * @throws ModelNotFoundException
+     * @throws \RuntimeException when foreign non-active profile
+     */
+    public function resolveProfileForViewer(string $id, string $viewerTenantSlug): array
+    {
+        $profile = $this->getProfile($id);
+
+        if ($profile->managed_by_tenant_slug === $viewerTenantSlug) {
+            return ['mode' => 'owner', 'data' => $this->toOwnerArray($profile)];
+        }
+
+        if ($profile->isActive()) {
+            return ['mode' => 'public', 'data' => $this->toPublicCard($profile)];
+        }
+
+        throw new ModelNotFoundException('Network profile not found.');
     }
 
     // -------------------------------------------------------------------------
@@ -130,6 +193,7 @@ class NetworkProfileService
     public function updateProfile(string $id, array $data, string $actorId, string $tenantSlug): NetworkProfile
     {
         $profile = $this->getProfile($id);
+        $this->assertManagedByTenant($profile, $tenantSlug);
 
         $before = $profile->only(['company_name', 'region', 'specializations', 'contact_email', 'contact_phone', 'website', 'description']);
 
@@ -162,6 +226,7 @@ class NetworkProfileService
     public function activateProfile(string $id, string $actorId, string $tenantSlug): NetworkProfile
     {
         $profile = $this->getProfile($id);
+        $this->assertManagedByTenant($profile, $tenantSlug);
 
         if (! $profile->isDraft()) {
             throw new \InvalidArgumentException(
@@ -246,5 +311,17 @@ class NetworkProfileService
             'before'       => ['network_profile_id' => $previousProfileId],
             'after'        => ['network_profile_id' => null],
         ]);
+    }
+
+    /**
+     * Assert that the calling tenant manages this profile.
+     *
+     * @throws \RuntimeException if the caller is not the managing tenant
+     */
+    private function assertManagedByTenant(NetworkProfile $profile, string $tenantSlug): void
+    {
+        if ($profile->managed_by_tenant_slug !== $tenantSlug) {
+            throw new \RuntimeException('You are not authorized to manage this Network Profile.');
+        }
     }
 }

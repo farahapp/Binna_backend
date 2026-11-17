@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\CostControl;
 
 use App\CostControl\CostControlService;
+use App\Foundation\TenantContext;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -62,7 +63,7 @@ class CostControlController extends Controller
             'description'  => 'nullable|string',
         ]);
 
-        $tenantSlug = $request->header('X-Tenant');
+        $tenantSlug = app(TenantContext::class)->slug;
         $actorId    = $request->user()?->id;
 
         try {
@@ -91,7 +92,7 @@ class CostControlController extends Controller
             'notes' => 'nullable|string',
         ]);
 
-        $tenantSlug  = $request->header('X-Tenant');
+        $tenantSlug  = app(TenantContext::class)->slug;
         $requestedBy = $request->user()?->id;
 
         try {
@@ -125,7 +126,7 @@ class CostControlController extends Controller
             'committed_date' => 'nullable|date',
         ]);
 
-        $tenantSlug = $request->header('X-Tenant');
+        $tenantSlug = app(TenantContext::class)->slug;
         $actorId    = $request->user()?->id;
 
         try {
@@ -185,7 +186,7 @@ class CostControlController extends Controller
             'cost_date'    => 'nullable|date',
         ]);
 
-        $tenantSlug = $request->header('X-Tenant');
+        $tenantSlug = app(TenantContext::class)->slug;
         $actorId    = $request->user()?->id;
 
         try {

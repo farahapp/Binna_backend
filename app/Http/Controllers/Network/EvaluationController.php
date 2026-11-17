@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Network;
 
+use App\Foundation\TenantContext;
 use App\Http\Controllers\Controller;
 use App\Network\EvaluationService;
 use Illuminate\Http\JsonResponse;
@@ -17,12 +18,15 @@ class EvaluationController extends Controller
     public function start(Request $request, string $tenderId): JsonResponse
     {
         $actorId    = (string) auth()->id();
-        $tenantSlug = (string) $request->header('X-Tenant', '');
+        $tenantSlug = app(TenantContext::class)->slug;
         try {
             $evaluation = $this->evaluationService->start($tenderId, $actorId, $tenantSlug);
             return response()->json($evaluation->load('notes'), 201);
         } catch (\RuntimeException $e) {
-            return response()->json(['error' => $e->getMessage()], 422);
+            $msg = strtolower($e->getMessage());
+            $status = (str_contains($msg, 'not authorized') || str_contains($msg, 'unauthorized')) ? 403 : 422;
+
+            return response()->json(['error' => $e->getMessage()], $status);
         }
     }
 
@@ -30,7 +34,7 @@ class EvaluationController extends Controller
     public function show(Request $request, string $id): JsonResponse
     {
         $actorId    = (string) auth()->id();
-        $tenantSlug = (string) $request->header('X-Tenant', '');
+        $tenantSlug = app(TenantContext::class)->slug;
         try {
             $evaluation = $this->evaluationService->getEvaluation($id, $actorId, $tenantSlug);
             return response()->json($evaluation->load('notes'));
@@ -43,7 +47,7 @@ class EvaluationController extends Controller
     public function complete(Request $request, string $id): JsonResponse
     {
         $actorId    = (string) auth()->id();
-        $tenantSlug = (string) $request->header('X-Tenant', '');
+        $tenantSlug = app(TenantContext::class)->slug;
         try {
             $evaluation = $this->evaluationService->complete($id, $actorId, $tenantSlug);
             return response()->json($evaluation->load('notes'));
@@ -60,7 +64,7 @@ class EvaluationController extends Controller
             'bid_id'  => 'nullable|uuid',
         ]);
         $actorId    = (string) auth()->id();
-        $tenantSlug = (string) $request->header('X-Tenant', '');
+        $tenantSlug = app(TenantContext::class)->slug;
         try {
             $note = $this->evaluationService->addNote($id, $validated, $actorId, $tenantSlug);
             return response()->json($note, 201);
@@ -73,7 +77,7 @@ class EvaluationController extends Controller
     public function bids(Request $request, string $id): JsonResponse
     {
         $actorId    = (string) auth()->id();
-        $tenantSlug = (string) $request->header('X-Tenant', '');
+        $tenantSlug = app(TenantContext::class)->slug;
         try {
             $bids = $this->evaluationService->getBidsForEvaluation($id, $actorId, $tenantSlug);
             return response()->json($bids->values());

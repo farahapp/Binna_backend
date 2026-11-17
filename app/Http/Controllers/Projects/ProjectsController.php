@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Projects;
 
+use App\Foundation\TenantContext;
 use App\Http\Controllers\Controller;
 use App\Projects\ProjectsService;
 use Illuminate\Http\JsonResponse;
@@ -94,8 +95,7 @@ class ProjectsController extends Controller
             'manager_id'  => 'nullable|uuid',
         ]);
 
-        $tenantSlug = $request->header('X-Tenant');
-        $validated['tenant_slug'] = $tenantSlug;
+        $validated['tenant_slug'] = app(TenantContext::class)->slug;
 
         try {
             $project = $this->projectsService->createProject($validated);
@@ -196,7 +196,7 @@ class ProjectsController extends Controller
 
         try {
             $actorId    = $request->user()?->id;
-            $tenantSlug = $request->header('X-Tenant', '');
+            $tenantSlug = app(TenantContext::class)->slug;
             $activity   = $this->projectsService->updateActivityStatus(
                 $activityId,
                 $request->input('status'),
@@ -355,7 +355,7 @@ class ProjectsController extends Controller
 
         try {
             $actorId    = $request->user()?->id;
-            $tenantSlug = $request->header('X-Tenant', '');
+            $tenantSlug = app(TenantContext::class)->slug;
 
             $parties = $this->projectsService->replaceProjectParties(
                 $id,

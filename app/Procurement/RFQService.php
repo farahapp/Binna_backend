@@ -54,6 +54,17 @@ class RFQService
     }
 
     /**
+     * listRFQs — paginated list in the active tenant schema.
+     *
+     * Tenant isolation: RFQ uses connection='tenant' (OD-001).
+     * Phase 5 Functional Parity — mirrors listPurchaseOrders.
+     */
+    public function listRFQs(int $perPage = 20): \Illuminate\Contracts\Pagination\LengthAwarePaginator
+    {
+        return RFQ::orderByDesc('created_at')->paginate($perPage);
+    }
+
+    /**
      * createRFQ — create a new RFQ in draft status.
      *
      * @param array{

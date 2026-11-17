@@ -37,6 +37,9 @@ class TenantBaselineMigrator
         } finally {
             // Purge the temporary connection so it does not leak.
             DB::purge($connectionName);
+            $connections = Config::get('database.connections');
+            unset($connections[$connectionName]);
+            Config::set('database.connections', $connections);
         }
     }
 
@@ -52,7 +55,7 @@ class TenantBaselineMigrator
     {
         $connectionName = 'tenant_baseline_'.$schemaName;
 
-        $base = Config::get('database.connections.mysql_provisioning');
+        $base = Config::get('database.provisioning_connection');
         Config::set("database.connections.{$connectionName}", array_merge($base, [
             'database' => $schemaName,
         ]));

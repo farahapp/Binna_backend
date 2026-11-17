@@ -7,6 +7,31 @@ use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 abstract class TestCase extends BaseTestCase
 {
     /**
+     * Every feature test uses isolated SQLite in-memory connections. The
+     * project phpunit.xml targets a dedicated MySQL test service; this local
+     * checkpoint must never contact that service or any shared database.
+     */
+    public function createApplication()
+    {
+        $app = parent::createApplication();
+
+        // Opt into MySQL only when the caller has provided a dedicated,
+        // isolated test server. Default stays in-memory SQLite to prevent an
+        // accidental connection to project or Production database settings.
+        if (filter_var(env('BINAA2_TEST_ISOLATED_MYSQL', false), FILTER_VALIDATE_BOOL)) {
+            return $app;
+        }
+
+        $sqlite = $app['config']->get('database.connections.sqlite');
+        $sqlite['database'] = ':memory:';
+        $app['config']->set('database.default', 'mysql');
+        $app['config']->set('database.connections.mysql', $sqlite);
+        $app['config']->set('database.connections.tenant', $sqlite);
+
+        return $app;
+    }
+
+    /**
      * Connections to wrap in a database transaction for each test.
      *
      * RefreshDatabase's connectionsToTransact() checks for this property and

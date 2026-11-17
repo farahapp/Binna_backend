@@ -348,21 +348,22 @@ class NetworkTenderTest extends TestCase
         $response->assertJsonPath('data.status', 'closed');
     }
 
-    public function test_award_tender_transitions_status(): void
+    public function test_patch_award_is_gated_to_award_service(): void
     {
         $tender = $this->createTestTender();
 
-        // draft → published → closed → awarded
+        // draft → published → closed
         $this->withHeaders($this->authHeaders())
             ->patchJson('/api/v1/network/tenders/' . $tender['id'] . '/publish');
         $this->withHeaders($this->authHeaders())
             ->patchJson('/api/v1/network/tenders/' . $tender['id'] . '/close');
 
+        // Status-only PATCH award is disabled — POST AwardService is canonical
         $response = $this->withHeaders($this->authHeaders())
             ->patchJson('/api/v1/network/tenders/' . $tender['id'] . '/award');
 
-        $response->assertStatus(200);
-        $response->assertJsonPath('data.status', 'awarded');
+        $response->assertStatus(422);
+        $response->assertJsonFragment(['error' => 'Status-only award is disabled. Use POST /api/v1/network/tenders/{id}/award to create an Award.']);
     }
 
     public function test_invalid_lifecycle_transition_rejected(): void
@@ -526,6 +527,13 @@ class NetworkTenderTest extends TestCase
 
     public function test_no_direct_cross_schema_coupling(): void
     {
+        if (filter_var(env('BINAA2_TEST_ISOLATED_MYSQL', false), FILTER_VALIDATE_BOOL)) {
+            // Single-schema local harness (docs/BINAA2_PHPUNIT_LOCAL_HARNESS.md):
+            // 'tenant' intentionally points at the same isolated schema as 'mysql',
+            // so the physical cross-schema separation cannot be evaluated here.
+            // It is proven by the provisioning/schema-per-tenant suite instead.
+            $this->markTestSkipped('Single-schema harness: tenant and mysql share one isolated schema.');
+        }
         // Verify network_tenders table is in global (mysql) schema
         $this->assertTrue(
             Schema::connection('mysql')->hasTable('network_tenders'),

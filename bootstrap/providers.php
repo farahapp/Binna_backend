@@ -22,4 +22,5 @@ return [
     App\Providers\FinanceAccountingIntegrationServiceProvider::class,
     App\Providers\BiServiceProvider::class,
     App\Providers\NetworkServiceProvider::class,
+    App\Providers\CoreServiceProvider::class,
 ];

@@ -139,7 +139,7 @@ class TenantDomainProvisioningTest extends TestCase
     {
         $connName = 'test_dom_' . $schemaName;
         config(["database.connections.{$connName}" => array_merge(
-            config('database.connections.mysql_provisioning'),
+            config('database.provisioning_connection'),
             ['database' => $schemaName],
         )]);
         return $connName;

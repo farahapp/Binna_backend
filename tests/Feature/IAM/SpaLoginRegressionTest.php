@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\IAM;
 
+use App\Foundation\TenantIdentifier;
 use App\IAM\User;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Config;
@@ -160,10 +161,10 @@ class SpaLoginRegressionTest extends TestCase
     /**
      * @test
      *
-     * TENANT GUARD: SPA login without X-Tenant header must return 400.
+     * TENANT GUARD: SPA login without X-Tenant header returns a generic 401.
      * Confirms ResolveTenantContext middleware is active on the SPA login route.
      */
-    public function spa_login_returns_400_without_x_tenant_header(): void
+    public function spa_login_returns_401_without_x_tenant_header(): void
     {
         $response = $this->withHeaders([
             'Origin'       => 'http://localhost:3000',
@@ -174,8 +175,8 @@ class SpaLoginRegressionTest extends TestCase
             'password' => $this->password,
         ]);
 
-        $response->assertStatus(400);
-        $response->assertJsonFragment(['error' => 'X-Tenant header is required.']);
+        $response->assertStatus(401);
+        $response->assertJsonFragment(['message' => 'Unauthenticated.']);
     }
 
     /**
@@ -233,13 +234,21 @@ class SpaLoginRegressionTest extends TestCase
         }
 
         // Step 3: Insert our own row.
-        DB::connection('mysql')->table('tenants')->insert([
+        $tenantId = DB::connection('mysql')->table('tenants')->insertGetId([
             'slug'        => self::SLUG,
             'name'        => 'SPA Regression Tenant',
             'schema_name' => self::SCHEMA,
+            'legal_type'  => 'organization',
+            'activity_type' => 'contractor',
             'status'      => 'active',
             'created_at'  => now(),
             'updated_at'  => now(),
+        ]);
+        TenantIdentifier::on('mysql')->create([
+            'tenant_id' => $tenantId,
+            'type' => 'cr',
+            'number' => 'CR-SPA-' . \Illuminate\Support\Str::uuid(),
+            'validity_status' => 'valid',
         ]);
 
         // Point tenant connection at the test schema.

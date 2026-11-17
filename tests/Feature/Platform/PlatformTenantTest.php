@@ -6,7 +6,9 @@ namespace Tests\Feature\Platform;
 
 use App\Foundation\PlatformUser;
 use App\Foundation\Tenant;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use App\Foundation\TenantProvisioner;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
 use PHPUnit\Framework\Attributes\Test;
@@ -27,58 +29,72 @@ use Tests\TestCase;
  *  PT-09 — schema_name is never returned in any tenant response.
  *  PT-10 — Tenant user token cannot access platform tenant routes (403).
  *
- * Uses DatabaseTransactions on 'mysql' only — no tenant schema touched.
+ * Uses an isolated in-memory SQLite schema and never touches tenant databases.
  */
 class PlatformTenantTest extends TestCase
 {
-    use DatabaseTransactions;
-
-    protected function connectionsToTransact(): array
-    {
-        return ['mysql'];
-    }
-
     protected function setUp(): void
     {
         parent::setUp();
-        $this->ensurePlatformUsersTableExists();
-        $this->ensurePlatformPATTableExists();
-        $this->ensureTenantsTableExists();
+        config([
+            'cache.default' => 'array',
+            'database.default' => 'mysql',
+            'database.connections.mysql' => [
+                'driver' => 'sqlite',
+                'database' => ':memory:',
+                'prefix' => '',
+                'foreign_key_constraints' => true,
+            ],
+        ]);
+        DB::purge('mysql');
+
+        $this->createSchema();
     }
 
-    // =========================================================================
-    // PT-01 — Authenticated list returns paginated data
-    // =========================================================================
+    protected function tearDown(): void
+    {
+        DB::purge('mysql');
+        parent::tearDown();
+    }
 
     #[Test]
     public function authenticated_operator_can_list_tenants(): void
     {
         $operator = $this->makePlatformUser();
-        $token    = $operator->createPlatformToken('platform-api', ['platform:*'])->plainTextToken;
-
+        $token = $operator->createPlatformToken('platform-api', ['platform:*'])->plainTextToken;
         $this->makeTenant('test-list-' . uniqid(), 'active');
 
         $response = $this->getJson('/api/platform/tenants', [
             'Authorization' => 'Bearer ' . $token,
         ]);
 
-        $response->assertStatus(200);
-        $data = $response->json();
-        $this->assertArrayHasKey('data', $data);
-        $this->assertArrayHasKey('total', $data);
-        $this->assertArrayHasKey('current_page', $data);
-        $this->assertIsArray($data['data']);
+        $response->assertOk();
+        $this->assertArrayHasKey('data', $response->json());
+        $this->assertArrayHasKey('total', $response->json());
+        $this->assertArrayHasKey('current_page', $response->json());
+        $this->assertIsArray($response->json('data'));
     }
 
-    // =========================================================================
-    // PT-02 — Unauthenticated list returns 401
-    // =========================================================================
+    #[Test]
+    public function listing_tenants_does_not_resolve_the_cli_only_tenant_provisioner(): void
+    {
+        $operator = $this->makePlatformUser();
+        $token = $operator->createPlatformToken('platform-api', ['platform:*'])->plainTextToken;
+        $this->app->bind(TenantProvisioner::class, function (): TenantProvisioner {
+            throw new \LogicException('The tenant provisioner must not be resolved for a read-only request.');
+        });
+
+        $response = $this->getJson('/api/platform/tenants', [
+            'Authorization' => 'Bearer '.$token,
+        ]);
+
+        $response->assertOk();
+    }
 
     #[Test]
     public function unauthenticated_request_to_tenants_returns_401(): void
     {
-        $response = $this->getJson('/api/platform/tenants');
-        $response->assertStatus(401);
+        $this->getJson('/api/platform/tenants')->assertUnauthorized();
     }
 
     // =========================================================================
@@ -104,6 +120,119 @@ class PlatformTenantTest extends TestCase
         foreach ($data as $tenant) {
             $this->assertSame('suspended', $tenant['status']);
         }
+    }
+
+    #[Test]
+    public function tenant_list_classifies_supported_types_and_filters_review_cases(): void
+    {
+        $this->assertSame(
+            ['classification' => 'needs_review', 'classification_reason' => 'missing_legal_type'],
+            Tenant::classificationFor(null, 'contractor')
+        );
+        $this->assertSame(
+            ['classification' => 'needs_review', 'classification_reason' => 'unsupported_legal_type'],
+            Tenant::classificationFor('owner', 'contractor')
+        );
+        $this->assertSame(
+            ['classification' => 'property_owner', 'classification_reason' => null],
+            Tenant::classificationFor('organization', 'owner')
+        );
+        $this->assertSame(
+            ['classification' => 'property_owner', 'classification_reason' => null],
+            Tenant::classificationFor('individual', 'owner')
+        );
+
+        $operator = $this->makePlatformUser();
+        $token = $operator->createPlatformToken('platform-api', ['platform:*'])->plainTextToken;
+        $headers = ['Authorization' => 'Bearer ' . $token];
+
+        $fixtures = [
+            'contracting_company' => $this->makeTenant('classification-company-' . uniqid(), 'active', 'organization', 'contractor'),
+            'individual_contractor' => $this->makeTenant('classification-individual-' . uniqid(), 'active', 'individual', 'contractor'),
+            'engineering_consultancy' => $this->makeTenant('classification-consultancy-' . uniqid(), 'active', 'organization', 'consultant'),
+            'property_owner_org' => $this->makeTenant('classification-owner-org-' . uniqid(), 'active', 'organization', 'owner'),
+            'property_owner_individual' => $this->makeTenant('classification-owner-ind-' . uniqid(), 'active', 'individual', 'owner'),
+            'both' => $this->makeTenant('classification-both-' . uniqid(), 'active', 'organization', 'both'),
+            'missing_activity' => $this->makeTenant('classification-missing-' . uniqid(), 'active', 'organization', null),
+            'unsupported_combination' => $this->makeTenant('classification-unsupported-' . uniqid(), 'active', 'individual', 'consultant'),
+        ];
+
+        $allResponse = $this->getJson('/api/platform/tenants?per_page=100', $headers);
+        $allResponse->assertOk();
+        $allTenants = collect($allResponse->json('data'))->keyBy('id');
+
+        $expectedClassifications = [
+            'contracting_company' => ['contracting_company', null],
+            'individual_contractor' => ['individual_contractor', null],
+            'engineering_consultancy' => ['engineering_consultancy', null],
+            'property_owner_org' => ['property_owner', null],
+            'property_owner_individual' => ['property_owner', null],
+            'both' => ['needs_review', 'unsupported_combination'],
+            'missing_activity' => ['needs_review', 'missing_activity_type'],
+            'unsupported_combination' => ['needs_review', 'unsupported_combination'],
+        ];
+
+        foreach ($fixtures as $key => $tenant) {
+            $this->assertArrayHasKey($tenant->id, $allTenants);
+            $this->assertSame(
+                $expectedClassifications[$key][0],
+                $allTenants[$tenant->id]['classification']
+            );
+            $this->assertSame(
+                $expectedClassifications[$key][1],
+                $allTenants[$tenant->id]['classification_reason']
+            );
+            $this->assertArrayHasKey('legal_type', $allTenants[$tenant->id]);
+            $this->assertArrayHasKey('activity_type', $allTenants[$tenant->id]);
+        }
+
+        $filterIds = [
+            'contracting_company' => [$fixtures['contracting_company']->id],
+            'individual_contractor' => [$fixtures['individual_contractor']->id],
+            'engineering_consultancy' => [$fixtures['engineering_consultancy']->id],
+            'property_owner' => [
+                $fixtures['property_owner_org']->id,
+                $fixtures['property_owner_individual']->id,
+            ],
+            'needs_review' => [
+                $fixtures['both']->id,
+                $fixtures['missing_activity']->id,
+                $fixtures['unsupported_combination']->id,
+            ],
+        ];
+
+        foreach ($filterIds as $classification => $expectedIds) {
+            $response = $this->getJson(
+                '/api/platform/tenants?classification=' . $classification . '&per_page=100',
+                $headers
+            );
+            $response->assertOk();
+            $actualIds = collect($response->json('data'))->pluck('id')->all();
+            foreach ($expectedIds as $expectedId) {
+                $this->assertContains($expectedId, $actualIds);
+            }
+            $expectedClassification = $classification;
+            foreach ($response->json('data') as $tenantData) {
+                $this->assertSame($expectedClassification, $tenantData['classification']);
+            }
+        }
+
+        $this->assertSame('organization', Tenant::on('mysql')->find($fixtures['both']->id)->legal_type);
+        $this->assertSame('both', Tenant::on('mysql')->find($fixtures['both']->id)->activity_type);
+
+        $groupResponse = $this->getJson('/api/platform/tenants?group=owners&per_page=100', $headers);
+        $groupResponse->assertOk();
+        $ownerIds = collect($groupResponse->json('data'))->pluck('id')->all();
+        $this->assertContains($fixtures['property_owner_org']->id, $ownerIds);
+        $this->assertContains($fixtures['property_owner_individual']->id, $ownerIds);
+        $this->assertNotContains($fixtures['contracting_company']->id, $ownerIds);
+
+        $summary = $this->getJson('/api/platform/tenants/summary', $headers);
+        $summary->assertOk();
+        $this->assertSame('client', $summary->json('architecture.owner_model'));
+        $this->assertFalse($summary->json('architecture.owner_tenant_product'));
+        $this->assertGreaterThanOrEqual(2, (int) $summary->json('tenants.owners_total'));
+        $this->assertGreaterThanOrEqual(2, (int) $summary->json('tenants.contractors_total'));
     }
 
     // =========================================================================
@@ -189,11 +318,11 @@ class PlatformTenantTest extends TestCase
     }
 
     // =========================================================================
-    // PT-08 — Activate a pending tenant
+    // PT-08 — Pending tenants cannot be activated through the API
     // =========================================================================
 
     #[Test]
-    public function activate_pending_tenant_returns_200_and_updates_status(): void
+    public function activate_pending_tenant_remains_inactive(): void
     {
         $operator = $this->makePlatformUser();
         $token    = $operator->createPlatformToken('platform-api', ['platform:*'])->plainTextToken;
@@ -204,11 +333,10 @@ class PlatformTenantTest extends TestCase
             'Authorization' => 'Bearer ' . $token,
         ]);
 
-        $response->assertStatus(200);
-        $this->assertSame('active', $response->json('tenant.status'));
+        $response->assertStatus(409);
 
         $fresh = Tenant::on('mysql')->find($tenant->id);
-        $this->assertSame('active', $fresh->status);
+        $this->assertSame('pending', $fresh->status);
     }
 
     // =========================================================================
@@ -254,15 +382,52 @@ class PlatformTenantTest extends TestCase
         $operator->is_active = $active;
         $operator->save();
 
+        $roleId = DB::connection('mysql')->table('platform_roles')->insertGetId([
+            'name' => 'Tenant test operator',
+            'slug' => 'tenant-test-' . uniqid(),
+            'description' => 'Platform tenant feature test',
+            'is_system' => false,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $permissionIds = DB::connection('mysql')->table('platform_permissions')
+            ->whereIn('name', [
+                'platform.tenants.view',
+                'platform.tenants.suspend',
+                'platform.tenants.activate',
+            ])
+            ->pluck('id');
+        foreach ($permissionIds as $permissionId) {
+            DB::connection('mysql')->table('platform_role_permissions')->insert([
+                'platform_role_id' => $roleId,
+                'platform_permission_id' => $permissionId,
+            ]);
+        }
+        DB::connection('mysql')->table('platform_user_roles')->insert([
+            'platform_user_id' => $operator->id,
+            'platform_role_id' => $roleId,
+        ]);
+
         return $operator;
     }
 
-    private function makeTenant(string $slug, string $status): Tenant
+    private function makeTenant(
+        string $slug,
+        string $status,
+        ?string $legalType = null,
+        ?string $activityType = null,
+    ): Tenant
     {
         $tenant = new Tenant();
         $tenant->setConnection('mysql');
         $tenant->slug        = $slug;
         $tenant->name        = 'Test Tenant ' . $slug;
+        if ($legalType !== null) {
+            $tenant->legal_type = $legalType;
+        }
+        if ($activityType !== null) {
+            $tenant->activity_type = $activityType;
+        }
         $tenant->status      = $status;
         $tenant->schema_name = 'binaa2_tenant_' . $slug;
         $tenant->save();
@@ -270,49 +435,107 @@ class PlatformTenantTest extends TestCase
         return $tenant;
     }
 
-    private function ensurePlatformUsersTableExists(): void
+    private function createSchema(): void
     {
-        if (! Schema::connection('mysql')->hasTable('platform_users')) {
-            Schema::connection('mysql')->create('platform_users', function ($table) {
-                $table->id();
-                $table->string('name');
-                $table->string('email')->unique();
-                $table->string('password');
-                $table->boolean('is_active')->default(true);
-                $table->timestamps();
-            });
-        }
-    }
+        Schema::connection('mysql')->create('platform_users', function (Blueprint $table): void {
+            $table->id();
+            $table->string('name');
+            $table->string('email')->unique();
+            $table->string('password');
+            $table->boolean('is_active')->default(true);
+            $table->timestamps();
+        });
+        Schema::connection('mysql')->create('platform_personal_access_tokens', function (Blueprint $table): void {
+            $table->id();
+            $table->string('tokenable_type');
+            $table->unsignedBigInteger('tokenable_id');
+            $table->string('name');
+            $table->string('token', 64)->unique();
+            $table->text('abilities')->nullable();
+            $table->timestamp('last_used_at')->nullable();
+            $table->timestamp('expires_at')->nullable();
+            $table->timestamps();
+        });
+        Schema::connection('mysql')->create('platform_roles', function (Blueprint $table): void {
+            $table->id();
+            $table->string('name');
+            $table->string('slug')->unique();
+            $table->text('description')->nullable();
+            $table->boolean('is_system')->default(false);
+            $table->timestamps();
+        });
+        Schema::connection('mysql')->create('platform_permissions', function (Blueprint $table): void {
+            $table->id();
+            $table->string('name')->unique();
+            $table->string('description');
+            $table->timestamps();
+        });
+        Schema::connection('mysql')->create('platform_role_permissions', function (Blueprint $table): void {
+            $table->unsignedBigInteger('platform_role_id');
+            $table->unsignedBigInteger('platform_permission_id');
+            $table->primary(['platform_role_id', 'platform_permission_id']);
+        });
+        Schema::connection('mysql')->create('platform_user_roles', function (Blueprint $table): void {
+            $table->unsignedBigInteger('platform_user_id');
+            $table->unsignedBigInteger('platform_role_id');
+            $table->primary(['platform_user_id', 'platform_role_id']);
+        });
+        Schema::connection('mysql')->create('platform_audit_entries', function (Blueprint $table): void {
+            $table->uuid('id')->primary();
+            $table->unsignedBigInteger('actor_id')->nullable()->index();
+            $table->string('event', 100)->index();
+            $table->string('subject_type', 100)->nullable();
+            $table->string('subject_id', 100)->nullable();
+            $table->json('before')->nullable();
+            $table->json('after')->nullable();
+            $table->timestamp('created_at')->useCurrent();
+        });
+        Schema::connection('mysql')->create('tenants', function (Blueprint $table): void {
+            $table->id();
+            $table->string('slug')->unique();
+            $table->string('name');
+            $table->string('legal_type', 32)->nullable();
+            $table->string('activity_type', 32)->nullable();
+            $table->string('phone', 32)->nullable();
+            $table->string('email')->nullable();
+            $table->string('responsible_name')->nullable();
+            $table->string('responsible_qid', 32)->nullable();
+            $table->date('qid_expires_at')->nullable();
+            $table->string('schema_name')->unique();
+            $table->string('status')->default('pending');
+            $table->timestamps();
+        });
+        Schema::connection('mysql')->create('tenant_identifiers', function (Blueprint $table): void {
+            $table->id();
+            $table->unsignedBigInteger('tenant_id');
+            $table->string('type', 64);
+            $table->string('number', 128);
+            $table->string('normalized_number', 128);
+            $table->date('expires_at')->nullable();
+            $table->string('validity_status', 32)->default('unverified');
+            $table->string('document_path')->nullable();
+            $table->timestamps();
+        });
+        Schema::connection('mysql')->create('tenant_settings', function (Blueprint $table): void {
+            $table->id();
+            $table->unsignedBigInteger('tenant_id');
+            $table->string('key');
+            $table->text('value')->nullable();
+            $table->timestamps();
+        });
 
-    private function ensurePlatformPATTableExists(): void
-    {
-        if (! Schema::connection('mysql')->hasTable('platform_personal_access_tokens')) {
-            Schema::connection('mysql')->create('platform_personal_access_tokens', function ($table) {
-                $table->id();
-                $table->string('tokenable_type');
-                $table->unsignedBigInteger('tokenable_id');
-                $table->index(['tokenable_type', 'tokenable_id'], 'ppat_tokenable_index');
-                $table->string('name');
-                $table->string('token', 64)->unique();
-                $table->text('abilities')->nullable();
-                $table->timestamp('last_used_at')->nullable();
-                $table->timestamp('expires_at')->nullable();
-                $table->timestamps();
-            });
-        }
-    }
-
-    private function ensureTenantsTableExists(): void
-    {
-        if (! Schema::connection('mysql')->hasTable('tenants')) {
-            Schema::connection('mysql')->create('tenants', function ($table) {
-                $table->id();
-                $table->string('slug')->unique();
-                $table->string('name');
-                $table->string('schema_name')->unique();
-                $table->enum('status', ['pending', 'active', 'suspended'])->default('pending');
-                $table->timestamps();
-            });
-        }
+        $now = now();
+        DB::connection('mysql')->table('platform_permissions')->insert(
+            collect([
+                'platform.tenants.view',
+                'platform.tenants.suspend',
+                'platform.tenants.activate',
+            ])->map(fn (string $name): array => [
+                'name' => $name,
+                'description' => $name,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ])->all()
+        );
     }
 }

@@ -35,6 +35,10 @@ class EvaluationService
     {
         $tender = NetworkTender::findOrFail($tenderId);
 
+        if ($tender->managed_by_tenant_slug !== $tenantSlug) {
+            throw new \RuntimeException('You are not authorized to start evaluation for this Network Tender.');
+        }
+
         if (! $tender->isClosed()) {
             throw new \RuntimeException('Tender must be closed before an evaluation can be started.');
         }

@@ -167,7 +167,7 @@ class DomainMigratorRegressionTest extends TestCase
     {
         $connName = 'test_reg_' . $schemaName;
         config(["database.connections.{$connName}" => array_merge(
-            config('database.connections.mysql_provisioning'),
+            config('database.provisioning_connection'),
             ['database' => $schemaName],
         )]);
         return $connName;
@@ -434,7 +434,7 @@ class DomainMigratorRegressionTest extends TestCase
         );
 
         // Also verify it is NOT using the provisioning connection port directly.
-        $provPort = Config::get('database.connections.mysql_provisioning.port');
+        $provPort = Config::get('database.provisioning_connection.port');
         if ($provPort !== null && $provPort !== $mysqlPort) {
             $this->assertNotSame(
                 (string) $provPort,

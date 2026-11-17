@@ -3,8 +3,18 @@
 namespace App\Providers;
 
 use App\Auth\PlatformGuard;
+use App\Auth\RegistrationTokenGuard;
+use App\Registration\Applicant;
+use App\Registration\Representative;
+use App\WhatsApp\Contracts\WhatsAppBridgeContract;
+use App\WhatsApp\FakeWhatsAppBridge;
+use App\WhatsApp\HttpWhatsAppBridgeClient;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Support\Str;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -13,7 +23,13 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->app->singleton(WhatsAppBridgeContract::class, function ($app) {
+            if ($app->environment('testing') || (bool) config('whatsapp.use_fake_bridge', false)) {
+                return new FakeWhatsAppBridge;
+            }
+
+            return new HttpWhatsAppBridgeClient;
+        });
     }
 
     /**
@@ -45,6 +61,45 @@ class AppServiceProvider extends ServiceProvider
         // Applied to: routes/api.php platform route group via auth:platform-token.
         Auth::extend('platform-token', function ($app, string $name, array $config) {
             return new PlatformGuard($app['request']);
+        });
+
+        Auth::extend('registration-token', function ($app, string $name, array $config) {
+            $provider = config("auth.guards.{$name}.provider");
+            $model = config("auth.providers.{$provider}.model");
+
+            return new RegistrationTokenGuard(
+                $app['request'],
+                $model,
+                $config['table'],
+                $config['foreign_key'],
+            );
+        });
+
+        RateLimiter::for('registration-otp', function (Request $request) {
+            $email = Str::lower(trim((string) $request->input('email')));
+
+            return [
+                Limit::perMinute(5)->by('registration-otp-ip:'.$request->ip()),
+                Limit::perMinute(3)->by('registration-otp-email:'.hash('sha256', $email)),
+            ];
+        });
+
+        RateLimiter::for('representative-auth', function (Request $request) {
+            $email = Str::lower(trim((string) $request->input('email')));
+
+            return [
+                Limit::perMinute(5)->by('representative-auth-ip:'.$request->ip()),
+                Limit::perMinute(5)->by('representative-auth-email:'.hash('sha256', $email)),
+            ];
+        });
+
+        RateLimiter::for('platform-web-auth', function (Request $request) {
+            $email = Str::lower(trim((string) $request->input('email')));
+
+            return [
+                Limit::perMinute(5)->by('platform-web-auth-ip:'.$request->ip()),
+                Limit::perMinute(5)->by('platform-web-auth-email:'.hash('sha256', $email)),
+            ];
         });
     }
 }

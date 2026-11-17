@@ -389,8 +389,8 @@ class DocumentController extends Controller
             return response()->json(['message' => 'File not found in storage.'], 404);
         }
 
-        // Determine filename for Content-Disposition.
-        $filename = basename($document->storage_path);
+        // Safe client filename from title — never echo storage_path / tenant key.
+        $filename = $this->safeDownloadFilename($document);
         $mimeType = $document->mime_type ?? 'application/octet-stream';
 
         // Stream the file contents — never expose storage_path or direct URL.
@@ -401,7 +401,7 @@ class DocumentController extends Controller
             $filename,
             [
                 'Content-Type'        => $mimeType,
-                'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+                'Content-Disposition' => 'attachment; filename="'.$filename.'"',
                 'Cache-Control'       => 'no-store, no-cache, must-revalidate',
                 'Pragma'              => 'no-cache',
             ],
@@ -466,9 +466,10 @@ class DocumentController extends Controller
      */
     private function formatDocument(Document $document): array
     {
+        // Authorized callers only reach here (tenant-scoped). Do not expose
+        // tenant_slug, storage_path, or raw storage filenames to clients.
         return [
             'id'              => $document->id,
-            'tenant_slug'     => $document->tenant_slug,
             'title'           => $document->title,
             'description'     => $document->description,
             'document_number' => $document->document_number,
@@ -479,9 +480,29 @@ class DocumentController extends Controller
             'current_version' => $document->current_version,
             'tags'            => $document->tags,
             'created_by'      => $document->created_by,
+            'has_file'        => ! empty($document->storage_path),
             'created_at'      => $document->created_at,
             'updated_at'      => $document->updated_at,
-            // storage_path intentionally excluded — TASK-002D boundary
+            // storage_path / tenant_slug intentionally excluded — E.7 P0
         ];
+    }
+
+    /**
+     * Safe download filename derived from document title (not storage path).
+     */
+    private function safeDownloadFilename(Document $document): string
+    {
+        $base = preg_replace('/[^\p{L}\p{N}\.\-_ ]+/u', '', (string) $document->title) ?: 'document';
+        $base = trim($base) !== '' ? trim($base) : 'document';
+        $ext = match (true) {
+            str_contains((string) $document->mime_type, 'pdf') => 'pdf',
+            str_contains((string) $document->mime_type, 'jpeg') => 'jpg',
+            str_contains((string) $document->mime_type, 'png') => 'png',
+            str_contains((string) $document->mime_type, 'sheet') => 'xlsx',
+            str_contains((string) $document->mime_type, 'word') => 'docx',
+            default => 'bin',
+        };
+
+        return $base.'.'.$ext;
     }
 }

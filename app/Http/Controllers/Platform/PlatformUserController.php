@@ -19,6 +19,8 @@ class PlatformUserController extends Controller
     {
         $validated = $request->validate([
             'search' => ['sometimes', 'nullable', 'string', 'max:100'],
+            'is_active' => ['sometimes', 'nullable', 'boolean'],
+            'role_slug' => ['sometimes', 'nullable', 'string', 'max:100'],
             'per_page' => ['sometimes', 'integer', 'min:1', 'max:100'],
         ]);
 
@@ -34,7 +36,27 @@ class PlatformUserController extends Controller
                 ->orWhere('email', 'like', "%{$search}%"));
         }
 
-        return response()->json($query->paginate($validated['per_page'] ?? 20));
+        if (array_key_exists('is_active', $validated) && $validated['is_active'] !== null) {
+            $query->where('is_active', (bool) $validated['is_active']);
+        }
+
+        if (! empty($validated['role_slug'])) {
+            $slug = (string) $validated['role_slug'];
+            $query->whereHas('platformRoles', fn ($roles) => $roles->where('slug', $slug));
+        }
+
+        $page = $query->paginate($validated['per_page'] ?? 20);
+        $summary = [
+            'total' => PlatformUser::on('mysql')->count(),
+            'active' => PlatformUser::on('mysql')->where('is_active', true)->count(),
+            'inactive' => PlatformUser::on('mysql')->where('is_active', false)->count(),
+            'owners' => PlatformUser::on('mysql')
+                ->where('is_active', true)
+                ->whereHas('platformRoles', fn ($roles) => $roles->where('slug', 'platform-owner'))
+                ->count(),
+        ];
+
+        return response()->json(array_merge($page->toArray(), ['summary' => $summary]));
     }
 
     public function store(Request $request, PlatformAuditService $audit): JsonResponse
@@ -55,6 +77,7 @@ class PlatformUserController extends Controller
         $actor = $request->user();
         $roleIds = array_map('intval', $data['role_ids'] ?? []);
         $this->rejectSystemRoleAssignment($roleIds);
+        $this->assertOwnerMayAssignSensitiveRoles($actor, $roleIds);
         $user = DB::connection('mysql')->transaction(function () use ($actor, $audit, $data): PlatformUser {
             $user = PlatformUser::on('mysql')->create([
                 'name' => $data['name'],
@@ -178,6 +201,7 @@ class PlatformUserController extends Controller
             }
             $before = $lockedUser->platformRoles()->pluck('platform_roles.id')->all();
             $this->rejectSystemRoleAssignment($roleIds, array_map('intval', $before));
+            $this->assertOwnerMayAssignSensitiveRoles($actor, $roleIds);
             if (
                 (int) $actor->getKey() === (int) $lockedUser->getKey()
                 && array_diff($roleIds, array_map('intval', $before)) !== []
@@ -250,6 +274,27 @@ class PlatformUserController extends Controller
 
         if ($newSystemRoles !== [] || $removedSystemRoles !== []) {
             abort(422, 'System roles can only be assigned through the controlled bootstrap procedure.');
+        }
+    }
+
+    /**
+     * @param array<int, int> $roleIds
+     */
+    private function assertOwnerMayAssignSensitiveRoles(PlatformUser $actor, array $roleIds): void
+    {
+        $containsFullIdentifierPermission = PlatformRole::on('mysql')
+            ->whereIn('id', $roleIds)
+            ->whereHas(
+                'permissions',
+                fn ($query) => $query->where('name', 'platform.tenants.identifiers.view'),
+            )
+            ->exists();
+
+        if (
+            $containsFullIdentifierPermission
+            && ! $actor->platformRoles()->where('slug', 'platform-owner')->exists()
+        ) {
+            abort(403, 'Only the Platform Owner may assign a role with full tenant identifier access.');
         }
     }
 

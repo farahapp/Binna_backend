@@ -52,6 +52,23 @@ return [
             'driver'   => 'platform-token',
             'provider' => 'platform_users',
         ],
+        // Browser-only Platform Admin session; separate from mobile PAT and tenant identities.
+        'platform-web' => [
+            'driver' => 'session',
+            'provider' => 'platform_web_users',
+        ],
+        'applicant-token' => [
+            'driver' => 'registration-token',
+            'provider' => 'registration_applicants',
+            'table' => 'registration_applicant_tokens',
+            'foreign_key' => 'applicant_id',
+        ],
+        'representative-token' => [
+            'driver' => 'registration-token',
+            'provider' => 'registration_representatives',
+            'table' => 'registration_representative_tokens',
+            'foreign_key' => 'representative_id',
+        ],
     ],
 
     /*
@@ -82,6 +99,21 @@ return [
         'platform_users' => [
             'driver' => 'eloquent',
             'model'  => App\Foundation\PlatformUser::class,
+        ],
+
+        'platform_web_users' => [
+            'driver' => 'eloquent',
+            'model' => App\Foundation\PlatformUser::class,
+        ],
+
+        'registration_applicants' => [
+            'driver' => 'eloquent',
+            'model' => App\Registration\Applicant::class,
+        ],
+
+        'registration_representatives' => [
+            'driver' => 'eloquent',
+            'model' => App\Registration\Representative::class,
         ],
 
         // 'users' => [

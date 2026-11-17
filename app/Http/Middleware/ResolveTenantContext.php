@@ -40,20 +40,8 @@ use Symfony\Component\HttpFoundation\Response;
  *  - PATH B: missing X-Tenant → 401, unknown tenant → 404, inactive → 403.
  *  - No cross-tenant access is possible; context is always DB-authoritative.
  *
- * ── WARN V-08 — Laravel Octane compatibility note ────────────────────────────
- * App::bound(TenantContext::class) in PATH A relies on the container being
- * clean at the start of each request.  In PHP-FPM this is guaranteed (new
- * process per request).  In Laravel Octane the container persists across
- * requests; a TenantContext bound by a previous request would cause PATH A
- * to fire incorrectly for a subsequent request that should use PATH B.
- *
- * Mitigation required before adopting Octane:
- *   Clear the binding at request end via App::forgetInstance(TenantContext::class)
- *   in a terminate() hook or Octane RequestHandled listener.
- *
- * This note is documentation only — NO behaviour change is made here.
- * Current runtime: PHP-FPM (safe).  Octane: NOT in use.
- * ─────────────────────────────────────────────────────────────────────────────
+ * TenantContext is request-scoped and its container binding is cleared after
+ * the downstream request pipeline completes, including when it throws.
  */
 class ResolveTenantContext
 {
@@ -62,6 +50,15 @@ class ResolveTenantContext
     ) {}
 
     public function handle(Request $request, Closure $next): Response
+    {
+        try {
+            return $this->resolveForRequest($request, $next);
+        } finally {
+            App::forgetInstance(TenantContext::class);
+        }
+    }
+
+    private function resolveForRequest(Request $request, Closure $next): Response
     {
         // PATH A: A trusted TenantContext was already bound by
         // ResolveTenantFromLoginToken (token-based flow).

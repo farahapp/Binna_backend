@@ -31,6 +31,38 @@ class RoleController extends Controller
     ) {}
 
     /**
+     * List roles in the active tenant schema.
+     *
+     * GET /api/iam/roles
+     */
+    public function index(Request $request): JsonResponse
+    {
+        $actor = $request->user();
+        $authorized = $actor
+            && ($actor->hasRole('tenant_admin')
+                || $actor->hasPermission('iam:roles:view')
+                || $actor->hasPermission('iam:users:assign_roles')
+                || $actor->hasPermission('iam:roles:assign_permission'));
+
+        if (! $authorized) {
+            return response()->json(['error' => 'Forbidden'], 403);
+        }
+
+        $roles = Role::on('tenant')
+            ->with('permissions:id,name')
+            ->orderBy('name')
+            ->get()
+            ->map(fn (Role $role) => [
+                'id' => $role->id,
+                'name' => $role->name,
+                'permissions' => $role->permissions->pluck('name')->values()->all(),
+            ])
+            ->values();
+
+        return response()->json(['data' => $roles]);
+    }
+
+    /**
      * Assign a permission to a role.
      *
      * POST /api/iam/roles/{roleId}/permissions/{permissionId}

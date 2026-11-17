@@ -5,12 +5,14 @@ declare(strict_types=1);
 namespace Tests\Feature\Audit;
 
 use App\Audit\AuditEntry;
+use App\Foundation\TenantIdentifier;
 use App\IAM\Permission;
 use App\IAM\Role;
 use App\IAM\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 use LogicException;
 use Tests\TestCase;
 
@@ -57,13 +59,32 @@ class SecurityEventIntegrationTest extends TestCase
 
     private function setUpTenantRecord(): void
     {
-        DB::connection('mysql')->table('tenants')->insertOrIgnore([
-            'slug'        => 'test-tenant',
-            'name'        => 'Test Tenant',
-            'schema_name' => 'binaa2_testing',
-            'status'      => 'active',
-            'created_at'  => now(),
-            'updated_at'  => now(),
+        DB::connection('mysql')->table('tenants')->updateOrInsert(
+            ['slug' => 'test-tenant'],
+            [
+                'name'          => 'Test Tenant',
+                'schema_name'   => 'binaa2_testing',
+                'status'        => 'active',
+                'legal_type'    => 'organization',
+                'activity_type' => 'contractor',
+                'created_at'    => now(),
+                'updated_at'    => now(),
+            ]
+        );
+
+        $tenantId = DB::connection('mysql')->table('tenants')
+            ->where('slug', 'test-tenant')
+            ->value('id');
+        $identifier = 'CR-AUDIT-'.strtoupper(str_replace('-', '', (string) Str::uuid()));
+
+        DB::connection('mysql')->table('tenant_identifiers')->insert([
+            'tenant_id'         => $tenantId,
+            'type'              => 'cr',
+            'number'            => $identifier,
+            'normalized_number' => TenantIdentifier::normalize($identifier),
+            'validity_status'   => 'valid',
+            'created_at'        => now(),
+            'updated_at'        => now(),
         ]);
     }
 
@@ -86,6 +107,15 @@ class SecurityEventIntegrationTest extends TestCase
     private function authHeaders(string $token): array
     {
         return array_merge($this->tenantHeaders(), ['Authorization' => 'Bearer '.$token]);
+    }
+
+    private function authorizePermissionAssignment(User $user): void
+    {
+        $role = Role::on('tenant')->firstOrCreate(
+            ['name' => 'tenant_admin'],
+            ['guard_name' => 'api']
+        );
+        $user->assignRole($role);
     }
 
     // -------------------------------------------------------------------------
@@ -223,7 +253,8 @@ class SecurityEventIntegrationTest extends TestCase
         $plainText = $newToken->plainTextToken;
         $tokenId   = $newToken->accessToken->id;
 
-        $this->postJson('/api/auth/logout', [], $this->authHeaders($plainText));
+        $response = $this->postJson('/api/auth/logout', [], $this->authHeaders($plainText));
+        $response->assertStatus(200);
 
         $tokenExists = DB::connection('tenant')
             ->table('personal_access_tokens')
@@ -257,6 +288,7 @@ class SecurityEventIntegrationTest extends TestCase
     public function permission_change_creates_audit_entry(): void
     {
         $actor      = $this->createTenantUser('actor-perm@example.com', 'secret123');
+        $this->authorizePermissionAssignment($actor);
         $token      = $actor->createToken('api')->plainTextToken;
         $role       = Role::on('tenant')->create(['name' => 'editor-'.uniqid(), 'guard_name' => 'api']);
         $permission = Permission::on('tenant')->create(['name' => 'edit-'.uniqid(), 'guard_name' => 'api']);
@@ -281,6 +313,7 @@ class SecurityEventIntegrationTest extends TestCase
     public function permission_change_audit_has_correct_actor(): void
     {
         $actor      = $this->createTenantUser('perm-actor@example.com', 'secret123');
+        $this->authorizePermissionAssignment($actor);
         $token      = $actor->createToken('api')->plainTextToken;
         $role       = Role::on('tenant')->create(['name' => 'mgr-'.uniqid(), 'guard_name' => 'api']);
         $permission = Permission::on('tenant')->create(['name' => 'manage-'.uniqid(), 'guard_name' => 'api']);
@@ -303,6 +336,7 @@ class SecurityEventIntegrationTest extends TestCase
     public function permission_change_audit_has_correct_subject(): void
     {
         $actor      = $this->createTenantUser('subj@example.com', 'secret123');
+        $this->authorizePermissionAssignment($actor);
         $token      = $actor->createToken('api')->plainTextToken;
         $role       = Role::on('tenant')->create(['name' => 'subj-role-'.uniqid(), 'guard_name' => 'api']);
         $permission = Permission::on('tenant')->create(['name' => 'subj-perm-'.uniqid(), 'guard_name' => 'api']);
@@ -326,6 +360,7 @@ class SecurityEventIntegrationTest extends TestCase
     public function permission_change_audit_captures_before_and_after(): void
     {
         $actor      = $this->createTenantUser('ba@example.com', 'secret123');
+        $this->authorizePermissionAssignment($actor);
         $token      = $actor->createToken('api')->plainTextToken;
         $role       = Role::on('tenant')->create(['name' => 'ba-role-'.uniqid(), 'guard_name' => 'api']);
         $permission = Permission::on('tenant')->create(['name' => 'ba-perm-'.uniqid(), 'guard_name' => 'api']);
@@ -352,6 +387,7 @@ class SecurityEventIntegrationTest extends TestCase
     public function permission_change_audit_has_correct_tenant(): void
     {
         $actor      = $this->createTenantUser('perm-tenant@example.com', 'secret123');
+        $this->authorizePermissionAssignment($actor);
         $token      = $actor->createToken('api')->plainTextToken;
         $role       = Role::on('tenant')->create(['name' => 'pt-role-'.uniqid(), 'guard_name' => 'api']);
         $permission = Permission::on('tenant')->create(['name' => 'pt-perm-'.uniqid(), 'guard_name' => 'api']);

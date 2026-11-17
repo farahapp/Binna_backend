@@ -88,8 +88,8 @@ class AwardService
             throw new \RuntimeException('The winning Bid does not belong to this Tender.');
         }
 
-        if ($bid->status !== 'submitted') {
-            throw new \RuntimeException('The winning Bid must be in submitted status.');
+        if (! in_array($bid->status, ['submitted', 'revised'], true)) {
+            throw new \RuntimeException('The winning Bid must be in submitted or revised status.');
         }
 
         if ($bid->withdrawn_at !== null) {
@@ -152,8 +152,37 @@ class AwardService
                 'after'        => ['status' => 'awarded'],
             ]);
 
-            // 4. Dispatch domain events (after commit — within transaction closure,
-            //    dispatched synchronously consistent with NETWORK-001/002/003/004 convention)
+            // 4. Create Core Engagement (consultancy|construction inferred from tender category)
+            $providerTenant = NetworkProfile::find($contractorProfileId)?->managed_by_tenant_slug;
+            $engagementType = str_contains(strtolower((string) $tender->category), 'consult')
+                ? 'consultancy'
+                : 'construction';
+
+            if ($providerTenant) {
+                $engagement = \App\Core\Engagement::create([
+                    'network_award_id' => $award->id,
+                    'network_tender_id' => $tender->id,
+                    'engagement_type' => $engagementType,
+                    'client_tenant_slug' => $tenantSlug,
+                    'provider_tenant_slug' => $providerTenant,
+                    'client_network_profile_id' => $tender->publisher_profile_id,
+                    'provider_network_profile_id' => $contractorProfileId,
+                    'status' => 'active',
+                ]);
+
+                $this->auditService->logEvent('core.engagement.created_from_award', $actorId, [
+                    'tenant_slug' => $tenantSlug,
+                    'subject_type' => 'Engagement',
+                    'subject_id' => $engagement->id,
+                    'after' => [
+                        'award_id' => $award->id,
+                        'type' => $engagementType,
+                        'provider' => $providerTenant,
+                    ],
+                ]);
+            }
+
+            // 5. Dispatch domain events
             Event::dispatch(new AwardCreated($award->fresh()));
             Event::dispatch(new TenderAwarded($award->fresh()));
 

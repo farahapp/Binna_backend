@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Accounting;
 
+use App\Foundation\TenantContext;
 use App\Accounting\AccountingService;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
@@ -34,7 +35,7 @@ class AccountingController extends Controller
     public function createAccount(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'tenant_slug'       => 'required|string',
+            'tenant_slug' => 'nullable|string',
             'account_code'      => 'required|string|max:50',
             'name'              => 'required|string|max:255',
             'account_type'      => 'required|in:ASSET,LIABILITY,EQUITY,REVENUE,EXPENSE',
@@ -45,7 +46,7 @@ class AccountingController extends Controller
 
         try {
             $account = $this->accountingService->createAccount(
-                tenantSlug:       $validated['tenant_slug'],
+                tenantSlug:   app(TenantContext::class)->slug,
                 accountCode:      $validated['account_code'],
                 name:             $validated['name'],
                 accountType:      $validated['account_type'],
@@ -63,12 +64,12 @@ class AccountingController extends Controller
     public function deactivateAccount(Request $request, string $id): JsonResponse
     {
         $validated = $request->validate([
-            'tenant_slug' => 'required|string',
+            'tenant_slug' => 'nullable|string',
         ]);
 
         try {
             $account = $this->accountingService->deactivateAccount(
-                tenantSlug: $validated['tenant_slug'],
+                tenantSlug:   app(TenantContext::class)->slug,
                 accountId:  $id,
                 actorId:    $request->user()?->id,
             );
@@ -93,12 +94,12 @@ class AccountingController extends Controller
     public function getTrialBalance(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'tenant_slug' => 'required|string',
+            'tenant_slug' => 'nullable|string',
             'period_id'   => 'nullable|uuid',
         ]);
 
         $result = $this->accountingService->getTrialBalance(
-            tenantSlug: $validated['tenant_slug'],
+            tenantSlug:   app(TenantContext::class)->slug,
             periodId:   $validated['period_id'] ?? null,
         );
 
@@ -112,7 +113,7 @@ class AccountingController extends Controller
     public function createPeriod(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'tenant_slug' => 'required|string',
+            'tenant_slug' => 'nullable|string',
             'period_name' => 'required|string|max:20',
             'start_date'  => 'required|date',
             'end_date'    => 'required|date|after_or_equal:start_date',
@@ -120,7 +121,7 @@ class AccountingController extends Controller
 
         try {
             $period = $this->accountingService->createPeriod(
-                tenantSlug:  $validated['tenant_slug'],
+                tenantSlug:   app(TenantContext::class)->slug,
                 periodName:  $validated['period_name'],
                 startDate:   $validated['start_date'],
                 endDate:     $validated['end_date'],
@@ -135,12 +136,12 @@ class AccountingController extends Controller
     public function closePeriod(Request $request, string $id): JsonResponse
     {
         $validated = $request->validate([
-            'tenant_slug' => 'required|string',
+            'tenant_slug' => 'nullable|string',
         ]);
 
         try {
             $period = $this->accountingService->closePeriod(
-                tenantSlug: $validated['tenant_slug'],
+                tenantSlug:   app(TenantContext::class)->slug,
                 periodId:   $id,
                 actorId:    $request->user()?->id,
             );
@@ -163,7 +164,7 @@ class AccountingController extends Controller
     public function createJournalEntry(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'tenant_slug'          => 'required|string',
+            'tenant_slug' => 'nullable|string',
             'reference'            => 'required|string|max:100',
             'posting_date'         => 'required|date',
             'period_id'            => 'required|uuid',
@@ -182,7 +183,7 @@ class AccountingController extends Controller
 
         try {
             $entry = $this->accountingService->createJournalEntry(
-                tenantSlug:          $validated['tenant_slug'],
+                tenantSlug:   app(TenantContext::class)->slug,
                 reference:           $validated['reference'],
                 postingDate:         $validated['posting_date'],
                 periodId:            $validated['period_id'],
@@ -202,12 +203,12 @@ class AccountingController extends Controller
     public function postJournalEntry(Request $request, string $id): JsonResponse
     {
         $validated = $request->validate([
-            'tenant_slug' => 'required|string',
+            'tenant_slug' => 'nullable|string',
         ]);
 
         try {
             $entry = $this->accountingService->postJournalEntry(
-                tenantSlug: $validated['tenant_slug'],
+                tenantSlug:   app(TenantContext::class)->slug,
                 entryId:    $id,
                 actorId:    $request->user()?->id,
             );
@@ -220,7 +221,7 @@ class AccountingController extends Controller
     public function reverseJournalEntry(Request $request, string $id): JsonResponse
     {
         $validated = $request->validate([
-            'tenant_slug'   => 'required|string',
+            'tenant_slug' => 'nullable|string',
             'reversal_date' => 'required|date',
             'period_id'     => 'required|uuid',
             'narration'     => 'nullable|string',
@@ -228,7 +229,7 @@ class AccountingController extends Controller
 
         try {
             $reversal = $this->accountingService->reverseJournalEntry(
-                tenantSlug:   $validated['tenant_slug'],
+                tenantSlug:   app(TenantContext::class)->slug,
                 entryId:      $id,
                 reversalDate: $validated['reversal_date'],
                 periodId:     $validated['period_id'],
@@ -258,7 +259,7 @@ class AccountingController extends Controller
     public function createPostingRule(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'tenant_slug'       => 'required|string',
+            'tenant_slug' => 'nullable|string',
             'trigger_event'     => 'required|string|max:100',
             'rule_name'         => 'required|string|max:200',
             'debit_account_id'  => 'nullable|uuid',
@@ -269,7 +270,7 @@ class AccountingController extends Controller
 
         try {
             $rule = $this->accountingService->createPostingRule(
-                tenantSlug:      $validated['tenant_slug'],
+                tenantSlug:   app(TenantContext::class)->slug,
                 triggerEvent:    $validated['trigger_event'],
                 ruleName:        $validated['rule_name'],
                 debitAccountId:  $validated['debit_account_id'] ?? null,

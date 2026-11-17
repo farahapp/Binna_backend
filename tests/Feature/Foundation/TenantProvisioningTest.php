@@ -5,10 +5,18 @@ declare(strict_types=1);
 namespace Tests\Feature\Foundation;
 
 use App\Foundation\Tenant;
+use App\Foundation\DomainMigrator;
+use App\Foundation\TenantBaselineMigrator;
+use App\Foundation\IamMigrator;
+use App\Foundation\TenantIdentifier;
 use App\Foundation\TenantProvisioner;
+use App\Foundation\TenantSchemaGrantor;
+use App\Registration\TenantRegistrationRequest;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Mockery;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 /**
@@ -29,6 +37,16 @@ class TenantProvisioningTest extends TestCase
 
     /** Tenant schemas created during this test run — cleaned up in tearDown. */
     private array $createdSchemas = [];
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $grantVerifier = Mockery::mock(TenantSchemaGrantor::class);
+        $grantVerifier->shouldReceive('verifyGrantedPrivileges')->zeroOrMoreTimes()->andReturnNull();
+        $this->app->instance(TenantSchemaGrantor::class, $grantVerifier);
+        $this->app->forgetInstance(TenantProvisioner::class);
+    }
 
     protected function tearDown(): void
     {
@@ -69,6 +87,156 @@ class TenantProvisioningTest extends TestCase
         $this->createdSchemas[] = $tenant->schema_name;
 
         $this->assertSame('active', $tenant->status);
+    }
+
+    /** @test */
+    public function missing_external_grant_keeps_provisioned_tenant_pending(): void
+    {
+        $slug = 'grant-verification-pending';
+        $schema = Tenant::deriveSchemaName($slug);
+        $this->createdSchemas[] = $schema;
+
+        $grantVerifier = Mockery::mock(TenantSchemaGrantor::class);
+        $grantVerifier->shouldReceive('verifyGrantedPrivileges')
+            ->once()
+            ->with(
+                $schema,
+                config('database.connections.tenant.username'),
+                config('database.connections.mysql.host', '127.0.0.1'),
+            )
+            ->andThrow(new \RuntimeException('GRANT verification failed: privileges are absent'));
+
+        $provisioner = new TenantProvisioner(
+            $this->app->make(TenantBaselineMigrator::class),
+            $this->app->make(IamMigrator::class),
+            $grantVerifier,
+            $this->app->make(DomainMigrator::class),
+        );
+
+        try {
+            $provisioner->provision($slug, 'Grant Verification Pending');
+            $this->fail('Provisioning must fail when the external runtime grant is missing.');
+        } catch (\RuntimeException $exception) {
+            $this->assertStringContainsString('provisioning failed', strtolower($exception->getMessage()));
+        }
+
+        $tenant = Tenant::on('mysql')->where('slug', $slug)->firstOrFail();
+        $this->assertSame('pending', $tenant->status);
+        $this->assertNotEmpty(DB::connection('mysql_provisioning')->select(
+            'SELECT SCHEMA_NAME FROM information_schema.SCHEMATA WHERE SCHEMA_NAME = ?',
+            [$schema],
+        ));
+        $this->assertDatabaseHas('tenant_migrations', [
+            'tenant_id' => $tenant->id,
+            'status' => 'applied',
+        ], 'mysql');
+    }
+
+    /** @test */
+    public function migration_failure_keeps_tenant_pending_and_skips_grant_verification(): void
+    {
+        $slug = 'migration-failure-pending';
+        $schema = Tenant::deriveSchemaName($slug);
+        $this->createdSchemas[] = $schema;
+
+        $baselineMigrator = Mockery::mock(TenantBaselineMigrator::class);
+        $baselineMigrator->shouldReceive('run')
+            ->once()
+            ->andThrow(new \RuntimeException('Test migration failure.'));
+        $grantVerifier = Mockery::mock(TenantSchemaGrantor::class);
+        $grantVerifier->shouldNotReceive('verifyGrantedPrivileges');
+
+        $provisioner = new TenantProvisioner(
+            $baselineMigrator,
+            $this->app->make(IamMigrator::class),
+            $grantVerifier,
+            $this->app->make(DomainMigrator::class),
+        );
+
+        try {
+            $provisioner->provision($slug, 'Migration Failure Pending');
+            $this->fail('Provisioning must fail when a required migration fails.');
+        } catch (\RuntimeException $exception) {
+            $this->assertStringContainsString('Test migration failure.', $exception->getMessage());
+        }
+
+        $tenant = Tenant::on('mysql')->where('slug', $slug)->firstOrFail();
+        $this->assertSame('pending', $tenant->status);
+    }
+
+    /** @test */
+    public function approved_registration_can_retry_after_external_grant_and_activates_once(): void
+    {
+        $slug = 'external-grant-retry';
+        $schema = Tenant::deriveSchemaName($slug);
+        $this->createdSchemas[] = $schema;
+
+        $registration = TenantRegistrationRequest::on('mysql')->create([
+            'request_number' => 'TEST-RETRY-'.Str::upper(Str::random(8)),
+            'slug' => $slug,
+            'source' => 'self_service',
+            'status' => 'approved_pending_provisioning',
+            'applicant_email' => 'retry@example.test',
+            'name' => 'External Grant Retry',
+            'legal_type' => 'organization',
+            'activity_type' => 'contractor',
+            'responsible_name' => 'Test Owner',
+        ]);
+        $identifier = TenantIdentifier::on('mysql')->create([
+            'registration_request_id' => $registration->id,
+            'type' => 'cr',
+            'number' => 'CR-RETRY-'.Str::upper(Str::random(8)),
+            'validity_status' => 'valid',
+        ]);
+
+        $verificationAttempts = 0;
+        $grantVerifier = Mockery::mock(TenantSchemaGrantor::class);
+        $grantVerifier->shouldReceive('verifyGrantedPrivileges')
+            ->twice()
+            ->with(
+                $schema,
+                config('database.connections.tenant.username'),
+                config('database.connections.mysql.host', '127.0.0.1'),
+            )
+            ->andReturnUsing(function (string $schemaName, string $runtimeUser, string $runtimeHost) use (&$verificationAttempts): void {
+                if ($verificationAttempts++ === 0) {
+                    throw new \RuntimeException('GRANT verification failed: privileges are absent');
+                }
+            });
+
+        $provisioner = new TenantProvisioner(
+            $this->app->make(TenantBaselineMigrator::class),
+            $this->app->make(IamMigrator::class),
+            $grantVerifier,
+            $this->app->make(DomainMigrator::class),
+        );
+
+        try {
+            $provisioner->provisionRegistration($registration->id);
+            $this->fail('The first attempt must stop when the external grant is missing.');
+        } catch (\RuntimeException $exception) {
+            $this->assertStringContainsString('provisioning failed', strtolower($exception->getMessage()));
+        }
+
+        $pending = Tenant::on('mysql')->where('slug', $slug)->firstOrFail();
+        $this->assertSame('pending', $pending->status);
+        $this->assertSame('approved_pending_provisioning', $registration->fresh()->status);
+        $this->assertSame($pending->id, $registration->fresh()->tenant_id);
+        $this->assertSame($registration->id, $identifier->fresh()->registration_request_id);
+
+        $active = $provisioner->provisionRegistration($registration->id);
+        $this->assertSame('active', $active->status);
+        $this->assertSame('provisioned', $registration->fresh()->status);
+        $this->assertSame($active->id, $identifier->fresh()->tenant_id);
+        $this->assertNull($identifier->fresh()->registration_request_id);
+
+        try {
+            $provisioner->provisionRegistration($registration->id);
+            $this->fail('A completed registration must not be provisioned again.');
+        } catch (\RuntimeException $exception) {
+            $this->assertStringContainsString('Only an approved registration', $exception->getMessage());
+        }
+        $this->assertSame('active', $active->fresh()->status);
     }
 
     // -------------------------------------------------------------------------
@@ -191,5 +359,29 @@ class TenantProvisioningTest extends TestCase
             [$tenantB->schema_name]
         );
         $this->assertNotEmpty($exists, 'Tenant B schema must still exist after Tenant A failure');
+    }
+
+    /** @test */
+    public function focused_provisioning_schemas_are_cleaned_up_after_tests(): void
+    {
+        $schemas = [
+            'binaa2_tenant_acme_test',
+            'binaa2_tenant_active_test',
+            'binaa2_tenant_grant_verification_pending',
+            'binaa2_tenant_migration_failure_pending',
+            'binaa2_tenant_external_grant_retry',
+            'binaa2_tenant_server_derived',
+            'binaa2_tenant_baseline_check',
+            'binaa2_tenant_marker_check',
+            'binaa2_tenant_tenant_b_ok',
+        ];
+        $placeholders = implode(', ', array_fill(0, count($schemas), '?'));
+
+        $leftovers = DB::connection('mysql_provisioning')->select(
+            "SELECT SCHEMA_NAME FROM information_schema.SCHEMATA WHERE SCHEMA_NAME IN ({$placeholders})",
+            $schemas,
+        );
+
+        $this->assertSame([], $leftovers, 'Focused provisioning schemas must be removed after each test.');
     }
 }

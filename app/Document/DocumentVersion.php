@@ -41,6 +41,11 @@ class DocumentVersion extends Model
         'file_size'      => 'integer',
     ];
 
+    /** Never serialize internal storage keys/paths to API consumers. */
+    protected $hidden = [
+        'storage_path',
+    ];
+
     public function document(): BelongsTo
     {
         return $this->belongsTo(Document::class, 'document_id');

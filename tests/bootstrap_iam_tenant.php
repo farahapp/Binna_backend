@@ -26,6 +26,8 @@ declare(strict_types=1);
 require_once __DIR__ . '/../vendor/autoload.php';
 
 use App\Foundation\IamMigrator;
+use App\Foundation\Tenant;
+use App\Foundation\TenantIdentifier;
 use App\Foundation\TenantProvisioner;
 use App\IAM\Permission;
 use App\IAM\Role;
@@ -58,35 +60,72 @@ function bootstrapAuthSmokeTenant(string $password): array
     $app = app();
 
     // -------------------------------------------------------------------------
+    // Harness mode detection (docs/BINAA2_PHPUNIT_LOCAL_HARNESS.md).
+    //
+    // The isolated local MySQL harness user (phpunit_local) holds grants ONLY on
+    // the single harness schema, so real schema-per-tenant provisioning DDL is
+    // impossible from tests, and the guarded mysql_provisioning connection is
+    // restricted to the tenant:provision-registration command (DEC-MYSQL-001).
+    // The documented harness approach: tenants.schema_name uniqueness is already
+    // relaxed on the harness DB only, so every test tenant authorizes against
+    // the same isolated schema. In harness mode we therefore create the tenant
+    // row directly instead of calling TenantProvisioner.
+    // -------------------------------------------------------------------------
+    $harnessMode = filter_var(env('BINAA2_TEST_ISOLATED_MYSQL', false), FILTER_VALIDATE_BOOL);
+
+    // -------------------------------------------------------------------------
     // Step 1: Clean up any leftover from a previous run before provisioning.
     // -------------------------------------------------------------------------
     cleanupAuthSmokeTenant();
 
-    // -------------------------------------------------------------------------
-    // Step 2: Provision tenant via TenantProvisioner (no modification to it).
-    // If the tenant already exists (cleanup failed), reuse it.
-    // -------------------------------------------------------------------------
-    /** @var TenantProvisioner $provisioner */
-    $provisioner = $app->make(TenantProvisioner::class);
+    if ($harnessMode) {
+        // Single-schema harness mode — no provisioning DDL, no guarded connection.
+        $schemaName = (string) config('database.connections.mysql.database');
+        assert($schemaName !== '', 'Harness schema name must be configured for harness mode');
 
-    $existingTenant = \App\Foundation\Tenant::where('slug', SMOKE_SLUG)->first();
-    if ($existingTenant) {
-        // IAM-PROV-002: Tenant exists (cleanup failed or schema pre-dates IAM-PROV-001).
-        // TenantProvisioner was NOT called, so IamMigrator was NOT called either.
-        // Apply IamMigrator now to guarantee IAM tables exist before proceeding.
-        // IamMigrator is idempotent — safe to call even if tables already exist.
-        $tenant = $existingTenant;
-        $iamMigrator = $app->make(IamMigrator::class);
-        $iamMigrator->run($tenant);
+        $tenant = new Tenant();
+        $tenant->slug = SMOKE_SLUG;
+        $tenant->name = 'Auth Smoke Test Tenant';
+        $tenant->status = 'active';
+        $tenant->schema_name = $schemaName;
+        $tenant->save();
     } else {
-        // Normal path: TenantProvisioner calls IamMigrator internally (IAM-PROV-001).
-        $tenant = $provisioner->provision(SMOKE_SLUG, 'Auth Smoke Test Tenant');
+        // -------------------------------------------------------------------------
+        // Step 2: Provision tenant via TenantProvisioner (no modification to it).
+        // If the tenant already exists (cleanup failed), reuse it.
+        // -------------------------------------------------------------------------
+        /** @var TenantProvisioner $provisioner */
+        $provisioner = $app->make(TenantProvisioner::class);
+
+        $existingTenant = \App\Foundation\Tenant::where('slug', SMOKE_SLUG)->first();
+        if ($existingTenant) {
+            // IAM-PROV-002: Tenant exists (cleanup failed or schema pre-dates IAM-PROV-001).
+            // TenantProvisioner was NOT called, so IamMigrator was NOT called either.
+            // Apply IamMigrator now to guarantee IAM tables exist before proceeding.
+            // IamMigrator is idempotent — safe to call even if tables already exist.
+            $tenant = $existingTenant;
+            $iamMigrator = $app->make(IamMigrator::class);
+            $iamMigrator->run($tenant);
+        } else {
+            // Normal path: TenantProvisioner calls IamMigrator internally (IAM-PROV-001).
+            $tenant = $provisioner->provision(SMOKE_SLUG, 'Auth Smoke Test Tenant');
+        }
+
+        assert($tenant->status === 'active', 'Tenant must be active after provisioning');
+        assert($tenant->schema_name === 'binaa2_tenant_auth_smoke', 'Schema name must match');
+
+        $schemaName = $tenant->schema_name;
     }
 
-    assert($tenant->status === 'active', 'Tenant must be active after provisioning');
-    assert($tenant->schema_name === 'binaa2_tenant_auth_smoke', 'Schema name must match');
-
-    $schemaName = $tenant->schema_name;
+    $tenant->legal_type = 'organization';
+    $tenant->activity_type = 'contractor';
+    $tenant->save();
+    TenantIdentifier::on('mysql')->create([
+        'tenant_id' => $tenant->id,
+        'type' => 'cr',
+        'number' => 'CR-SMOKE-' . \Illuminate\Support\Str::uuid(),
+        'validity_status' => 'valid',
+    ]);
 
     // -------------------------------------------------------------------------
     // Step 2: Switch tenant connection to the provisioned schema
@@ -96,8 +135,14 @@ function bootstrapAuthSmokeTenant(string $password): array
     // -------------------------------------------------------------------------
     // Step 3: Run IAM + Audit migrations on the tenant connection
     //         (test infrastructure only — not production code)
+    //
+    // Harness mode skips this: the harness schema already carries the IAM and
+    // audit tables, and the audit migration creates audit_entries unconditionally,
+    // so re-running it would raise "table already exists".
     // -------------------------------------------------------------------------
-    runIamMigrationsOnTenantConnection();
+    if (! $harnessMode) {
+        runIamMigrationsOnTenantConnection();
+    }
 
     // -------------------------------------------------------------------------
     // Step 4: Verify tables exist

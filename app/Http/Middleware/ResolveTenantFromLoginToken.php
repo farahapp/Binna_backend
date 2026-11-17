@@ -30,22 +30,8 @@ use Throwable;
  *
  * Legacy / Platform flows that do NOT pass through this middleware are unaffected.
  *
- * ── WARN V-08 — Laravel Octane compatibility note ────────────────────────────
- * App::instance() binds the TenantContext into the application container for
- * the duration of this request.  In standard PHP-FPM each request is a
- * separate process, so the binding is naturally scoped to one request.
- *
- * If the application is ever migrated to Laravel Octane (long-running process),
- * the container is reused across requests.  The TenantContext bound here would
- * persist into the next request unless explicitly cleared.
- *
- * Mitigation required before adopting Octane:
- *   Add a terminate() hook (or Octane RequestHandled listener) that calls
- *   App::forgetInstance(TenantContext::class) after each request completes.
- *
- * This note is documentation only — NO behaviour change is made here.
- * Current runtime: PHP-FPM (safe).  Octane: NOT in use.
- * ─────────────────────────────────────────────────────────────────────────────
+ * ResolveTenantContext clears the request-scoped TenantContext binding when
+ * the downstream request pipeline completes.
  */
 class ResolveTenantFromLoginToken
 {

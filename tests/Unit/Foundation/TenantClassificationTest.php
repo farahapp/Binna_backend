@@ -11,18 +11,19 @@ use Tests\TestCase;
 class TenantClassificationTest extends TestCase
 {
     #[Test]
-    public function it_classifies_only_the_three_approved_tenant_types(): void
+    public function it_classifies_approved_entity_types_including_owners(): void
     {
         $cases = [
             ['organization', 'contractor', 'contracting_company', null],
             ['individual', 'contractor', 'individual_contractor', null],
             ['organization', 'consultant', 'engineering_consultancy', null],
+            ['organization', 'owner', 'property_owner', null],
+            ['individual', 'owner', 'property_owner', null],
             ['organization', 'both', 'needs_review', 'unsupported_combination'],
             ['organization', null, 'needs_review', 'missing_activity_type'],
             ['individual', 'consultant', 'needs_review', 'unsupported_combination'],
             [null, 'contractor', 'needs_review', 'missing_legal_type'],
             ['owner', 'contractor', 'needs_review', 'unsupported_legal_type'],
-            ['organization', 'owner', 'needs_review', 'unsupported_activity_type'],
         ];
 
         foreach ($cases as [$legalType, $activityType, $classification, $reason]) {

@@ -11,6 +11,7 @@ use App\Http\Controllers\Document\DocumentController;
 use App\Http\Controllers\IAM\AuthController;
 use App\Http\Controllers\IAM\TenantResolutionController;
 use App\Http\Controllers\IAM\RoleController;
+use App\Http\Controllers\IAM\UserController;
 use App\Http\Controllers\Inventory\GoodsReceiptController;
 use App\Http\Controllers\Inventory\StockController;
 use App\Http\Controllers\Notification\NotificationController;
@@ -29,11 +30,25 @@ use App\Http\Controllers\Network\BidController;
 use App\Http\Controllers\Network\EvaluationController;
 use App\Http\Controllers\Network\AwardController;
 use App\Http\Controllers\Network\NetworkProfileVerificationController;
+use App\Http\Controllers\Network\InvitationController;
+use App\Http\Controllers\Network\ClarificationController;
+use App\Http\Controllers\Core\CoreProjectController;
+use App\Http\Controllers\Core\CollaborationController;
+use App\Http\Controllers\Platform\PlatformAuditController;
 use App\Http\Controllers\Platform\PlatformAuthController;
+use App\Http\Controllers\Platform\PlatformDashboardController;
 use App\Http\Controllers\Platform\PlatformPermissionController;
 use App\Http\Controllers\Platform\PlatformRoleController;
 use App\Http\Controllers\Platform\PlatformTenantController;
 use App\Http\Controllers\Platform\PlatformUserController;
+use App\Http\Controllers\Platform\PlatformRepresentativeController;
+use App\Http\Controllers\Platform\PlatformTenantRegistrationController;
+use App\Http\Controllers\Platform\PlatformRegistrationDocumentRequirementController;
+use App\Http\Controllers\Platform\PlatformWhatsAppController;
+use App\Http\Controllers\Registration\ApplicantIdentityController;
+use App\Http\Controllers\Registration\ApplicantRegistrationController;
+use App\Http\Controllers\Registration\RepresentativeAuthController;
+use App\Http\Controllers\Registration\RepresentativeRegistrationController;
 use Illuminate\Support\Facades\Route;
 use Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful;
 
@@ -48,7 +63,7 @@ use Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful;
 */
 
 // ─── Health check — no auth, no tenant middleware ─────────────────────────────
-// Required by Hangar (and Railway) healthcheckPath = /api/health
+// Health endpoint used for deployment checks: /api/health
 Route::get('/health', function () {
     return response()->json([
         'status' => 'ok',
@@ -57,31 +72,78 @@ Route::get('/health', function () {
     ], 200);
 })->name('health');
 
+// Applicant and representative registration identities are separate from tenant IAM and Platform IAM.
+Route::prefix('registration')->name('registration.')->group(function () {
+    Route::post('/applicant/otp/request', [ApplicantIdentityController::class, 'requestOtp'])
+        ->middleware('throttle:registration-otp')->name('applicant.otp.request');
+    Route::post('/applicant/otp/verify', [ApplicantIdentityController::class, 'verifyOtp'])
+        ->middleware('throttle:registration-otp')->name('applicant.otp.verify');
+
+    Route::post('/representative/login', [RepresentativeAuthController::class, 'login'])
+        ->middleware('throttle:representative-auth')->name('representative.login');
+    Route::post('/representative/password-reset', [RepresentativeAuthController::class, 'requestPasswordReset'])
+        ->middleware('throttle:representative-auth')->name('representative.password-reset');
+    Route::post('/representative/invitation/consume', [RepresentativeAuthController::class, 'consumeInvitation'])
+        ->middleware('throttle:representative-auth')->name('representative.invitation.consume');
+
+    Route::middleware('auth:applicant-token')->prefix('applicant')->name('applicant.')->group(function () {
+        Route::get('/me', [ApplicantIdentityController::class, 'me'])->name('me');
+        Route::post('/logout', [ApplicantIdentityController::class, 'logout'])->name('logout');
+        Route::get('/requests', [ApplicantRegistrationController::class, 'index'])->name('requests.index');
+        Route::post('/requests/claim-assisted', [ApplicantRegistrationController::class, 'claim'])->name('requests.claim');
+        Route::post('/requests', [ApplicantRegistrationController::class, 'store'])->name('requests.store');
+        Route::get('/requests/{id}', [ApplicantRegistrationController::class, 'show'])->name('requests.show');
+        Route::put('/requests/{id}', [ApplicantRegistrationController::class, 'update'])->name('requests.update');
+        Route::post('/requests/{id}/submit', [ApplicantRegistrationController::class, 'submit'])->name('requests.submit');
+        Route::post('/requests/{id}/information', [ApplicantRegistrationController::class, 'respond'])->name('requests.information');
+        Route::get('/requests/{id}/documents/checklist', [ApplicantRegistrationController::class, 'checklist'])
+            ->name('requests.documents.checklist');
+        Route::post('/requests/{id}/attachments', [ApplicantRegistrationController::class, 'upload'])->name('requests.attachments.store');
+        Route::get('/requests/{id}/attachments/{attachmentId}', [ApplicantRegistrationController::class, 'downloadAttachment'])
+            ->name('requests.attachments.download');
+    });
+
+    Route::middleware('auth:representative-token')->prefix('representative')->name('representative.')->group(function () {
+        Route::get('/me', [RepresentativeAuthController::class, 'me'])->name('me');
+        Route::post('/logout', [RepresentativeAuthController::class, 'logout'])->name('logout');
+        Route::get('/requests', [RepresentativeRegistrationController::class, 'index'])->name('requests.index');
+        Route::post('/requests', [RepresentativeRegistrationController::class, 'store'])->name('requests.store');
+        Route::get('/requests/{id}', [RepresentativeRegistrationController::class, 'show'])->name('requests.show');
+        Route::put('/requests/{id}', [RepresentativeRegistrationController::class, 'update'])->name('requests.update');
+        Route::post('/requests/{id}/submit', [RepresentativeRegistrationController::class, 'submit'])->name('requests.submit');
+        Route::post('/requests/{id}/attachments', [RepresentativeRegistrationController::class, 'upload'])->name('requests.attachments.store');
+        Route::get('/requests/{id}/attachments/{attachmentId}', [RepresentativeRegistrationController::class, 'downloadAttachment'])
+            ->name('requests.attachments.download');
+    });
+});
+
 // ─── Platform Admin: No X-Tenant required — shared schema only ───────────────
 // Platform operators authenticate against platform_users (shared mysql schema).
 // These routes are entirely separate from tenant routes.
-// Pipeline: [no tenant middleware] → auth:sanctum (platform guard) → platform.operator → Controller
-//
-// FIX (CSRF-419): EnsureFrontendRequestsAreStateful is prepended to the entire
-// 'api' group in bootstrap/app.php to support SPA Cookie auth for tenant routes.
-// Platform routes use Bearer PAT (stateless) — they must NOT go through the
-// stateful pipeline, which would trigger ValidateCsrfToken for browser requests
-// from stateful domains (localhost:3001) and return HTTP 419.
-// withoutMiddleware() removes it from this group only; tenant routes are unaffected.
+// Pipeline: [no tenant middleware] → Platform session or PAT auth → platform.operator → Controller.
+// Browser-origin requests use Sanctum stateful cookies + CSRF. Native PAT login
+// remains stateless and explicitly excludes the stateful middleware.
 
 // Public: Platform operator login (no auth required)
 Route::prefix('platform')
     ->name('platform.')
-    ->withoutMiddleware(EnsureFrontendRequestsAreStateful::class)
     ->group(function () {
 
     Route::post('/auth/login', [PlatformAuthController::class, 'login'])
+        ->withoutMiddleware(EnsureFrontendRequestsAreStateful::class)
         ->name('auth.login');
 
+    Route::post('/auth/web/login', [PlatformAuthController::class, 'webLogin'])
+        ->middleware('throttle:platform-web-auth')
+        ->name('auth.web.login');
+    Route::post('/auth/web/logout', [PlatformAuthController::class, 'webLogout'])
+        ->middleware(['auth:platform-web', 'platform.operator'])
+        ->name('auth.web.logout');
+
     // Protected: require authenticated platform operator
-    // auth:sanctum resolves the bearer token against all registered tokenable models.
-    // platform.operator then verifies the resolved user is a PlatformUser (not a tenant user).
-    Route::middleware(['auth:platform-token', 'platform.operator'])->group(function () {
+    // Either Platform's dedicated browser session or its separate mobile PAT is accepted.
+    // platform.operator rejects tenant identities; no tenant middleware is applied here.
+    Route::middleware(['auth:platform-web,platform-token', 'platform.operator'])->group(function () {
 
         Route::post('/auth/logout', [PlatformAuthController::class, 'logout'])
             ->name('auth.logout');
@@ -91,6 +153,59 @@ Route::prefix('platform')
 
         Route::post('/auth/change-password', [PlatformAuthController::class, 'changePassword'])
             ->name('auth.change-password');
+
+        Route::get('/dashboard', [PlatformDashboardController::class, 'show'])
+            ->name('dashboard.show');
+
+        Route::get('/audit-entries', [PlatformAuditController::class, 'index'])
+            ->middleware('platform.permission:platform.audit.view')
+            ->name('audit-entries.index');
+
+        Route::get('/settings/whatsapp', [PlatformWhatsAppController::class, 'show'])
+            ->middleware('platform.permission:platform.settings.whatsapp.manage')
+            ->name('settings.whatsapp.show');
+        Route::patch('/settings/whatsapp', [PlatformWhatsAppController::class, 'updateSettings'])
+            ->middleware('platform.permission:platform.settings.whatsapp.manage')
+            ->name('settings.whatsapp.update');
+        Route::post('/settings/whatsapp/link', [PlatformWhatsAppController::class, 'startLink'])
+            ->middleware('platform.permission:platform.settings.whatsapp.manage')
+            ->name('settings.whatsapp.link');
+        Route::get('/settings/whatsapp/qr', [PlatformWhatsAppController::class, 'qr'])
+            ->middleware('platform.permission:platform.settings.whatsapp.manage')
+            ->name('settings.whatsapp.qr');
+        Route::post('/settings/whatsapp/qr/refresh', [PlatformWhatsAppController::class, 'refreshQr'])
+            ->middleware('platform.permission:platform.settings.whatsapp.manage')
+            ->name('settings.whatsapp.qr.refresh');
+        Route::post('/settings/whatsapp/candidate/cancel', [PlatformWhatsAppController::class, 'cancelCandidate'])
+            ->middleware('platform.permission:platform.settings.whatsapp.manage')
+            ->name('settings.whatsapp.candidate.cancel');
+        Route::post('/settings/whatsapp/identity/sync', [PlatformWhatsAppController::class, 'syncIdentity'])
+            ->middleware('platform.permission:platform.settings.whatsapp.manage')
+            ->name('settings.whatsapp.identity.sync');
+        Route::post('/settings/whatsapp/approve', [PlatformWhatsAppController::class, 'approve'])
+            ->middleware('platform.permission:platform.settings.whatsapp.manage')
+            ->name('settings.whatsapp.approve');
+        Route::post('/settings/whatsapp/rollback', [PlatformWhatsAppController::class, 'rollback'])
+            ->middleware('platform.permission:platform.settings.whatsapp.manage')
+            ->name('settings.whatsapp.rollback');
+        Route::post('/settings/whatsapp/disconnect', [PlatformWhatsAppController::class, 'disconnect'])
+            ->middleware('platform.permission:platform.settings.whatsapp.manage')
+            ->name('settings.whatsapp.disconnect');
+        Route::post('/settings/whatsapp/test-connection', [PlatformWhatsAppController::class, 'testConnection'])
+            ->middleware('platform.permission:platform.settings.whatsapp.manage')
+            ->name('settings.whatsapp.test-connection');
+        Route::post('/settings/whatsapp/test-message', [PlatformWhatsAppController::class, 'testMessage'])
+            ->middleware('platform.permission:platform.settings.whatsapp.manage')
+            ->name('settings.whatsapp.test-message');
+        Route::post('/settings/whatsapp/security/backup', [PlatformWhatsAppController::class, 'createBackup'])
+            ->middleware('platform.permission:platform.settings.whatsapp.manage')
+            ->name('settings.whatsapp.security.backup');
+        Route::post('/settings/whatsapp/security/verify', [PlatformWhatsAppController::class, 'verifyStorage'])
+            ->middleware('platform.permission:platform.settings.whatsapp.manage')
+            ->name('settings.whatsapp.security.verify');
+        Route::post('/settings/whatsapp/security/recovery-test', [PlatformWhatsAppController::class, 'recoveryTest'])
+            ->middleware('platform.permission:platform.settings.whatsapp.manage')
+            ->name('settings.whatsapp.security.recovery-test');
 
         // Platform IAM uses shared-schema roles and permissions, never Tenant IAM.
         Route::get('/users', [PlatformUserController::class, 'index'])
@@ -140,16 +255,75 @@ Route::prefix('platform')
             ->middleware('platform.permission:platform.permissions.view')
             ->name('permissions.index');
 
-        // Tenant management
+        // Tenant / entity directory management
+        Route::get('/tenants/summary', [PlatformTenantController::class, 'summary'])
+            ->middleware('platform.permission:platform.tenants.view')
+            ->name('tenants.summary');
         Route::get('/tenants', [PlatformTenantController::class, 'index'])
             ->middleware('platform.permission:platform.tenants.view')
             ->name('tenants.index');
-        Route::post('/tenants', [PlatformTenantController::class, 'store'])
+        Route::get('/tenant-registrations', [PlatformTenantRegistrationController::class, 'index'])
+            ->middleware('platform.permission:platform.tenant_registrations.view')
+            ->name('tenant-registrations.index');
+        Route::get('/tenant-registrations/{id}', [PlatformTenantRegistrationController::class, 'show'])
+            ->middleware('platform.permission:platform.tenant_registrations.view')
+            ->name('tenant-registrations.show');
+        Route::post('/tenant-registrations/{id}/review', [PlatformTenantRegistrationController::class, 'review'])
             ->middleware([
-                'platform.permission:platform.tenants.create',
-                'platform.permission:platform.tenants.view',
+                'platform.permission:platform.tenant_registrations.review',
+                'platform.permission:platform.tenant_registrations.view',
             ])
-            ->name('tenants.store');
+            ->name('tenant-registrations.review');
+        Route::post('/tenant-registrations/{id}/representatives', [PlatformTenantRegistrationController::class, 'assign'])
+            ->middleware('platform.permission:platform.tenant_registrations.assign-representatives')
+            ->name('tenant-registrations.representatives.assign');
+        Route::delete('/tenant-registrations/{id}/representatives/{representativeId}', [PlatformTenantRegistrationController::class, 'unassign'])
+            ->middleware('platform.permission:platform.tenant_registrations.assign-representatives')
+            ->name('tenant-registrations.representatives.unassign');
+        Route::post('/tenant-registrations/{id}/attachments/{attachmentId}/review', [PlatformTenantRegistrationController::class, 'reviewAttachment'])
+            ->middleware([
+                'platform.permission:platform.tenant_registrations.documents.review',
+                'platform.permission:platform.tenant_registrations.view',
+            ])
+            ->name('tenant-registrations.attachments.review');
+        Route::get('/tenant-registrations/{id}/attachments/{attachmentId}', [PlatformTenantRegistrationController::class, 'downloadAttachment'])
+            ->middleware('platform.permission:platform.tenant_registrations.view')
+            ->name('tenant-registrations.attachments.download');
+
+        Route::get('/registration-document-requirements', [PlatformRegistrationDocumentRequirementController::class, 'index'])
+            ->middleware('platform.permission:platform.registration_document_requirements.manage')
+            ->name('registration-document-requirements.index');
+        Route::post('/registration-document-requirements', [PlatformRegistrationDocumentRequirementController::class, 'store'])
+            ->middleware('platform.permission:platform.registration_document_requirements.manage')
+            ->name('registration-document-requirements.store');
+        Route::put('/registration-document-requirements/{id}', [PlatformRegistrationDocumentRequirementController::class, 'update'])
+            ->middleware('platform.permission:platform.registration_document_requirements.manage')
+            ->name('registration-document-requirements.update');
+
+        Route::get('/registration-representatives', [PlatformRepresentativeController::class, 'index'])
+            ->middleware('platform.permission:platform.registration_representatives.view')
+            ->name('registration-representatives.index');
+        Route::post('/registration-representatives', [PlatformRepresentativeController::class, 'store'])
+            ->middleware([
+                'platform.permission:platform.registration_representatives.create',
+                'platform.permission:platform.registration_representatives.view',
+            ])
+            ->name('registration-representatives.store');
+        Route::get('/registration-representatives/{id}/audit', [PlatformRepresentativeController::class, 'audit'])
+            ->middleware('platform.permission:platform.registration_representatives.view')
+            ->name('registration-representatives.audit');
+        Route::post('/registration-representatives/{id}/approve', [PlatformRepresentativeController::class, 'approve'])
+            ->middleware('platform.permission:platform.registration_representatives.approve')
+            ->name('registration-representatives.approve');
+        Route::post('/registration-representatives/{id}/resend-invitation', [PlatformRepresentativeController::class, 'resendInvitation'])
+            ->middleware('platform.permission:platform.registration_representatives.approve')
+            ->name('registration-representatives.resend-invitation');
+        Route::post('/registration-representatives/{id}/suspend', [PlatformRepresentativeController::class, 'suspend'])
+            ->middleware('platform.permission:platform.registration_representatives.suspend')
+            ->name('registration-representatives.suspend');
+        Route::post('/registration-representatives/{id}/reactivate', [PlatformRepresentativeController::class, 'reactivate'])
+            ->middleware('platform.permission:platform.registration_representatives.approve')
+            ->name('registration-representatives.reactivate');
 
         Route::get('/tenants/{id}', [PlatformTenantController::class, 'show'])
             ->middleware('platform.permission:platform.tenants.view')
@@ -242,6 +416,13 @@ Route::middleware(['tenant', 'tenant.schema', 'auth:sanctum', 'tenant.membership
     // Session-based auth via EnsureFrontendRequestsAreStateful + auth:sanctum
     Route::post('/auth/spa/logout', [AuthController::class, 'spaLogout'])
         ->name('auth.spa.logout');
+
+    // IAM — Tenant users & roles (Wave E.4 — additive; does not change auth contracts)
+    Route::get('/iam/users', [UserController::class, 'index'])->name('iam.users.index');
+    Route::post('/iam/users', [UserController::class, 'store'])->name('iam.users.store');
+    Route::patch('/iam/users/{id}', [UserController::class, 'update'])->name('iam.users.update');
+    Route::put('/iam/users/{id}/roles', [UserController::class, 'syncRoles'])->name('iam.users.roles.sync');
+    Route::get('/iam/roles', [RoleController::class, 'index'])->name('iam.roles.index');
 
     // IAM — Permission Change (TASK-001C Unit 3)
     Route::post('/iam/roles/{role}/permissions/{permission}', [RoleController::class, 'assignPermission'])
@@ -470,6 +651,8 @@ Route::middleware(['tenant', 'tenant.schema', 'auth:sanctum', 'tenant.membership
     Route::prefix('v1/procurement')->name('procurement.')->group(function () {
 
         // CAP-061 — Purchase Requests
+        Route::get('/purchase-requests', [PurchaseRequestController::class, 'list'])
+            ->name('purchase-requests.list');
         Route::post('/purchase-requests', [PurchaseRequestController::class, 'create'])
             ->name('purchase-requests.create');
         Route::get('/purchase-requests/{id}', [PurchaseRequestController::class, 'show'])
@@ -484,6 +667,8 @@ Route::middleware(['tenant', 'tenant.schema', 'auth:sanctum', 'tenant.membership
             ->name('purchase-requests.cancel');
 
         // CAP-062 — RFQs & Quotations
+        Route::get('/rfqs', [RFQController::class, 'list'])
+            ->name('rfqs.list');
         Route::post('/rfqs', [RFQController::class, 'create'])
             ->name('rfqs.create');
         Route::get('/rfqs/{id}', [RFQController::class, 'show'])
@@ -965,5 +1150,70 @@ Route::middleware(['tenant', 'tenant.schema', 'auth:sanctum', 'tenant.membership
             ->name('awards.showByTender');
         Route::get('/awards/{id}', [AwardController::class, 'show'])
             ->name('awards.show');
+
+        // NETWORK-006 — Tender Invitations
+        Route::post('/tenders/{tenderId}/invitations', [InvitationController::class, 'invite'])
+            ->name('invitations.create');
+        Route::get('/tenders/{tenderId}/invitations', [InvitationController::class, 'listForTender'])
+            ->name('invitations.list');
+        Route::get('/invitations/mine', [InvitationController::class, 'listMine'])
+            ->name('invitations.mine');
+        Route::patch('/invitations/{id}/respond', [InvitationController::class, 'respond'])
+            ->name('invitations.respond');
+
+        // NETWORK-007 — Clarifications
+        Route::post('/clarifications', [ClarificationController::class, 'ask'])
+            ->name('clarifications.ask');
+        Route::patch('/clarifications/{id}/answer', [ClarificationController::class, 'answer'])
+            ->name('clarifications.answer');
+        Route::get('/tenders/{tenderId}/clarifications', [ClarificationController::class, 'listForTender'])
+            ->name('clarifications.list');
+    });
+
+    // -------------------------------------------------------------------------
+    // Core Ecosystem — Property / Project Identity / Participation / Engagement
+    // Shared (mysql) schema — TenantContext for authority; no client tenant_slug.
+    // -------------------------------------------------------------------------
+    Route::prefix('v1/core')->name('core.')->group(function () {
+        Route::post('/properties', [CoreProjectController::class, 'createProperty'])
+            ->name('properties.create');
+        Route::get('/properties', [CoreProjectController::class, 'listProperties'])
+            ->name('properties.list');
+        Route::get('/properties/{id}', [CoreProjectController::class, 'showProperty'])
+            ->name('properties.show');
+
+        Route::post('/project-identities', [CoreProjectController::class, 'createIdentity'])
+            ->name('project-identities.create');
+        Route::get('/project-identities', [CoreProjectController::class, 'listIdentities'])
+            ->name('project-identities.list');
+        Route::get('/project-identities/{id}', [CoreProjectController::class, 'showIdentity'])
+            ->name('project-identities.show');
+        Route::post('/project-identities/{identityId}/participations', [CoreProjectController::class, 'inviteParticipant'])
+            ->name('participations.invite');
+        Route::patch('/participations/{participationId}/respond', [CoreProjectController::class, 'respondParticipation'])
+            ->name('participations.respond');
+
+        Route::get('/project-link-requests', [CoreProjectController::class, 'listLinkRequests'])
+            ->name('link-requests.list');
+        Route::post('/project-link-requests', [CoreProjectController::class, 'createLinkRequest'])
+            ->name('link-requests.create');
+        Route::patch('/project-link-requests/{id}/decide', [CoreProjectController::class, 'decideLinkRequest'])
+            ->name('link-requests.decide');
+
+        Route::get('/engagements', [CoreProjectController::class, 'listEngagements'])
+            ->name('engagements.list');
+        Route::get('/engagements/{id}', [CoreProjectController::class, 'showEngagement'])
+            ->name('engagements.show');
+        Route::post('/engagements', [CoreProjectController::class, 'createEngagement'])
+            ->name('engagements.create');
+
+        Route::post('/submissions', [CollaborationController::class, 'submit'])
+            ->name('submissions.create');
+        Route::get('/project-identities/{identityId}/submissions', [CollaborationController::class, 'listSubmissions'])
+            ->name('submissions.list');
+        Route::post('/submissions/{submissionId}/reviews', [CollaborationController::class, 'review'])
+            ->name('submissions.review');
+        Route::post('/submissions/{submissionId}/owner-decisions', [CollaborationController::class, 'ownerDecide'])
+            ->name('submissions.owner-decide');
     });
 });

@@ -101,6 +101,9 @@ class DomainMigrator
             $this->applyDomainMigrations($connectionName, $tenant);
         } finally {
             DB::purge($connectionName);
+            $connections = Config::get('database.connections');
+            unset($connections[$connectionName]);
+            Config::set('database.connections', $connections);
         }
     }
 
@@ -117,7 +120,7 @@ class DomainMigrator
     {
         $connectionName = 'tenant_domain_' . $schemaName;
 
-        $base = Config::get('database.connections.mysql_provisioning');
+        $base = Config::get('database.provisioning_connection');
         Config::set("database.connections.{$connectionName}", array_merge($base, [
             'database' => $schemaName,
         ]));

@@ -27,6 +27,7 @@ class Tenant extends Model
     public const CLASSIFICATION_CONTRACTING_COMPANY = 'contracting_company';
     public const CLASSIFICATION_INDIVIDUAL_CONTRACTOR = 'individual_contractor';
     public const CLASSIFICATION_ENGINEERING_CONSULTANCY = 'engineering_consultancy';
+    public const CLASSIFICATION_PROPERTY_OWNER = 'property_owner';
     public const CLASSIFICATION_NEEDS_REVIEW = 'needs_review';
 
     /** Shared-schema connection — never the per-tenant connection. */
@@ -105,7 +106,7 @@ class Tenant extends Model
             ];
         }
 
-        if (! in_array($activityType, ['contractor', 'consultant', 'both'], true)) {
+        if (! in_array($activityType, ['contractor', 'consultant', 'both', 'owner'], true)) {
             return [
                 'classification' => self::CLASSIFICATION_NEEDS_REVIEW,
                 'classification_reason' => 'unsupported_activity_type',
@@ -116,6 +117,8 @@ class Tenant extends Model
             ['organization', 'contractor'] => self::CLASSIFICATION_CONTRACTING_COMPANY,
             ['individual', 'contractor'] => self::CLASSIFICATION_INDIVIDUAL_CONTRACTOR,
             ['organization', 'consultant'] => self::CLASSIFICATION_ENGINEERING_CONSULTANCY,
+            ['organization', 'owner'] => self::CLASSIFICATION_PROPERTY_OWNER,
+            ['individual', 'owner'] => self::CLASSIFICATION_PROPERTY_OWNER,
             default => null,
         };
 

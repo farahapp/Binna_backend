@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Finance;
 
+use App\Foundation\TenantContext;
 use App\Finance\FinanceService;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
@@ -36,7 +37,7 @@ class FinanceController extends Controller
     public function createCashAccount(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'tenant_slug'  => 'required|string',
+            'tenant_slug' => 'nullable|string',
             'account_code' => 'required|string|max:50',
             'name'         => 'required|string|max:255',
             'description'  => 'nullable|string',
@@ -45,7 +46,7 @@ class FinanceController extends Controller
 
         try {
             $account = $this->financeService->createCashAccount(
-                tenantSlug:   $validated['tenant_slug'],
+                tenantSlug:   app(TenantContext::class)->slug,
                 accountCode:  $validated['account_code'],
                 name:         $validated['name'],
                 description:  $validated['description'] ?? null,
@@ -61,7 +62,7 @@ class FinanceController extends Controller
     public function recordCashTransaction(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'tenant_slug'      => 'required|string',
+            'tenant_slug' => 'nullable|string',
             'cash_account_id'  => 'required|uuid',
             'type'             => 'required|in:IN,OUT',
             'amount'           => 'required|numeric|min:0.0001',
@@ -72,7 +73,7 @@ class FinanceController extends Controller
 
         try {
             $tx = $this->financeService->recordCashTransaction(
-                tenantSlug:      $validated['tenant_slug'],
+                tenantSlug:   app(TenantContext::class)->slug,
                 cashAccountId:   $validated['cash_account_id'],
                 type:            $validated['type'],
                 amount:          (float) $validated['amount'],
@@ -94,7 +95,7 @@ class FinanceController extends Controller
     public function createBankAccount(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'tenant_slug'    => 'required|string',
+            'tenant_slug' => 'nullable|string',
             'account_code'   => 'required|string|max:50',
             'bank_name'      => 'required|string|max:255',
             'account_number' => 'required|string|max:50',
@@ -104,7 +105,7 @@ class FinanceController extends Controller
 
         try {
             $account = $this->financeService->createBankAccount(
-                tenantSlug:    $validated['tenant_slug'],
+                tenantSlug:   app(TenantContext::class)->slug,
                 accountCode:   $validated['account_code'],
                 bankName:      $validated['bank_name'],
                 accountNumber: $validated['account_number'],
@@ -121,7 +122,7 @@ class FinanceController extends Controller
     public function recordBankTransaction(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'tenant_slug'      => 'required|string',
+            'tenant_slug' => 'nullable|string',
             'bank_account_id'  => 'required|uuid',
             'type'             => 'required|in:CREDIT,DEBIT',
             'amount'           => 'required|numeric|min:0.0001',
@@ -132,7 +133,7 @@ class FinanceController extends Controller
 
         try {
             $tx = $this->financeService->recordBankTransaction(
-                tenantSlug:      $validated['tenant_slug'],
+                tenantSlug:   app(TenantContext::class)->slug,
                 bankAccountId:   $validated['bank_account_id'],
                 type:            $validated['type'],
                 amount:          (float) $validated['amount'],
@@ -150,7 +151,7 @@ class FinanceController extends Controller
     public function reconcileBank(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'tenant_slug'       => 'required|string',
+            'tenant_slug' => 'nullable|string',
             'bank_account_id'   => 'required|uuid',
             'period_start'      => 'required|date',
             'period_end'        => 'required|date|after_or_equal:period_start',
@@ -160,7 +161,7 @@ class FinanceController extends Controller
 
         try {
             $rec = $this->financeService->reconcileBank(
-                tenantSlug:       $validated['tenant_slug'],
+                tenantSlug:   app(TenantContext::class)->slug,
                 bankAccountId:    $validated['bank_account_id'],
                 periodStart:      $validated['period_start'],
                 periodEnd:        $validated['period_end'],
@@ -187,10 +188,10 @@ class FinanceController extends Controller
     public function getCashPosition(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'tenant_slug' => 'required|string',
+            'tenant_slug' => 'nullable|string',
         ]);
 
-        $position = $this->financeService->getCashPosition($validated['tenant_slug']);
+        $position = $this->financeService->getCashPosition(app(TenantContext::class)->slug);
         return response()->json($position);
     }
 
@@ -201,7 +202,7 @@ class FinanceController extends Controller
     public function createInvoice(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'tenant_slug'    => 'required|string',
+            'tenant_slug' => 'nullable|string',
             'invoice_number' => 'required|string|max:50',
             'client_id'      => 'required|uuid',
             'invoice_date'   => 'required|date',
@@ -213,7 +214,7 @@ class FinanceController extends Controller
 
         try {
             $invoice = $this->financeService->createInvoice(
-                tenantSlug:    $validated['tenant_slug'],
+                tenantSlug:   app(TenantContext::class)->slug,
                 invoiceNumber: $validated['invoice_number'],
                 clientId:      $validated['client_id'],
                 invoiceDate:   $validated['invoice_date'],
@@ -232,7 +233,7 @@ class FinanceController extends Controller
     public function addInvoiceItem(Request $request, string $invoiceId): JsonResponse
     {
         $validated = $request->validate([
-            'tenant_slug'  => 'required|string',
+            'tenant_slug' => 'nullable|string',
             'description'  => 'required|string|max:500',
             'quantity'     => 'required|numeric|min:0.0001',
             'unit_price'   => 'required|numeric|min:0',
@@ -241,7 +242,7 @@ class FinanceController extends Controller
 
         try {
             $item = $this->financeService->addInvoiceItem(
-                tenantSlug:  $validated['tenant_slug'],
+                tenantSlug:   app(TenantContext::class)->slug,
                 invoiceId:   $invoiceId,
                 description: $validated['description'],
                 quantity:    (float) $validated['quantity'],
@@ -258,12 +259,12 @@ class FinanceController extends Controller
     public function issueInvoice(Request $request, string $invoiceId): JsonResponse
     {
         $validated = $request->validate([
-            'tenant_slug' => 'required|string',
+            'tenant_slug' => 'nullable|string',
         ]);
 
         try {
             $invoice = $this->financeService->issueInvoice(
-                tenantSlug: $validated['tenant_slug'],
+                tenantSlug:   app(TenantContext::class)->slug,
                 invoiceId:  $invoiceId,
                 actorId:    $request->user()?->id,
             );
@@ -290,7 +291,7 @@ class FinanceController extends Controller
     public function recordCollection(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'tenant_slug'     => 'required|string',
+            'tenant_slug' => 'nullable|string',
             'receivable_id'   => 'required|uuid',
             'amount'          => 'required|numeric|min:0.0001',
             'collection_date' => 'required|date',
@@ -303,7 +304,7 @@ class FinanceController extends Controller
 
         try {
             $collection = $this->financeService->recordCollection(
-                tenantSlug:     $validated['tenant_slug'],
+                tenantSlug:   app(TenantContext::class)->slug,
                 receivableId:   $validated['receivable_id'],
                 amount:         (float) $validated['amount'],
                 collectionDate: $validated['collection_date'],
@@ -387,7 +388,7 @@ class FinanceController extends Controller
     public function recordPayment(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'tenant_slug'     => 'required|string',
+            'tenant_slug' => 'nullable|string',
             'payment_number'  => 'required|string|max:50',
             'payment_type'    => 'required|in:SUPPLIER,CLIENT',
             'payment_method'  => 'required|in:CASH,BANK_TRANSFER,CHEQUE',
@@ -403,7 +404,7 @@ class FinanceController extends Controller
 
         try {
             $payment = $this->financeService->recordPayment(
-                tenantSlug:     $validated['tenant_slug'],
+                tenantSlug:   app(TenantContext::class)->slug,
                 paymentNumber:  $validated['payment_number'],
                 paymentType:    $validated['payment_type'],
                 paymentMethod:  $validated['payment_method'],

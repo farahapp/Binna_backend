@@ -18,6 +18,12 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
+        // API guests must not redirect to a missing named "login" route. That
+        // path throws RouteNotFoundException and surfaces as HTTP 500 for
+        // browser navigations (Accept: text/html) to /api/*. Return null so
+        // AuthenticationException renders as 401 JSON for api/* routes.
+        $middleware->redirectGuestsTo(fn () => null);
+
         // CORS — must be before all other middleware (handles preflight OPTIONS).
         $middleware->prepend(HandleCors::class);
 

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Network;
 
+use App\Foundation\TenantContext;
 use App\Http\Controllers\Controller;
 use App\Network\TenderService;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -18,7 +19,7 @@ use Illuminate\Validation\ValidationException;
  *
  * Architectural constraints:
  *  - Backend authority: all validation and authorization enforced here.
- *  - Tenant context resolved from X-Tenant header (existing middleware).
+ *  - Tenant context resolved from TenantContext (SPA PATH C / PAT PATH B).
  *  - Actor identity from authenticated Sanctum user.
  *  - Visibility access control enforced via TenderService.
  *  - No Bid, Evaluation, Award endpoints.
@@ -49,7 +50,7 @@ class TenderController extends Controller
                 'specializations'      => 'nullable|array',
                 'requirements'         => 'nullable|array',
                 'participant_types'    => 'nullable|array',
-                'participant_types.*'  => 'string|in:owner,engineer,contractor,main_contractor,subcontractor,supplier',
+                'participant_types.*'  => 'string|in:owner,consultant,engineer,contractor,main_contractor,subcontractor,supplier',
                 'visibility'           => 'nullable|in:public,private,invited,matched',
                 'match_criteria'       => 'nullable|array',
             ]);
@@ -58,12 +59,14 @@ class TenderController extends Controller
         }
 
         $actorId    = (string) auth()->id();
-        $tenantSlug = (string) $request->header('X-Tenant', '');
+        $tenantSlug = app(TenantContext::class)->slug;
 
         try {
             $tender = $this->service->createTender($validated, $actorId, $tenantSlug);
         } catch (\InvalidArgumentException $e) {
             return response()->json(['error' => $e->getMessage()], 422);
+        } catch (\RuntimeException $e) {
+            return response()->json(['error' => $e->getMessage()], $this->networkAuthStatus($e));
         }
 
         return response()->json(['data' => $tender->toArray()], 201);
@@ -76,7 +79,7 @@ class TenderController extends Controller
     public function list(Request $request): JsonResponse
     {
         $filters    = $request->only(['status', 'visibility', 'category', 'region', 'publisher_profile_id']);
-        $tenantSlug = (string) $request->header('X-Tenant', '');
+        $tenantSlug = app(TenantContext::class)->slug;
 
         $paginated = $this->service->listTenders($filters, $tenantSlug);
 
@@ -89,7 +92,7 @@ class TenderController extends Controller
 
     public function show(Request $request, string $id): JsonResponse
     {
-        $tenantSlug = (string) $request->header('X-Tenant', '');
+        $tenantSlug = app(TenantContext::class)->slug;
 
         try {
             $tender = $this->service->getTender($id, $tenantSlug);
@@ -120,7 +123,7 @@ class TenderController extends Controller
                 'specializations'   => 'nullable|array',
                 'requirements'      => 'nullable|array',
                 'participant_types' => 'nullable|array',
-                'participant_types.*' => 'string|in:owner,engineer,contractor,main_contractor,subcontractor,supplier',
+                'participant_types.*' => 'string|in:owner,consultant,engineer,contractor,main_contractor,subcontractor,supplier',
                 'visibility'        => 'nullable|in:public,private,invited,matched',
                 'match_criteria'    => 'nullable|array',
             ]);
@@ -129,14 +132,14 @@ class TenderController extends Controller
         }
 
         $actorId    = (string) auth()->id();
-        $tenantSlug = (string) $request->header('X-Tenant', '');
+        $tenantSlug = app(TenantContext::class)->slug;
 
         try {
             $tender = $this->service->updateTender($id, $validated, $actorId, $tenantSlug);
         } catch (ModelNotFoundException) {
             return response()->json(['error' => 'Network tender not found.'], 404);
         } catch (\RuntimeException $e) {
-            return response()->json(['error' => $e->getMessage()], 422);
+            return response()->json(['error' => $e->getMessage()], $this->networkAuthStatus($e));
         }
 
         return response()->json(['data' => $tender->toArray()]);
@@ -149,14 +152,14 @@ class TenderController extends Controller
     public function publish(Request $request, string $id): JsonResponse
     {
         $actorId    = (string) auth()->id();
-        $tenantSlug = (string) $request->header('X-Tenant', '');
+        $tenantSlug = app(TenantContext::class)->slug;
 
         try {
             $tender = $this->service->publishTender($id, $actorId, $tenantSlug);
         } catch (ModelNotFoundException) {
             return response()->json(['error' => 'Network tender not found.'], 404);
         } catch (\RuntimeException $e) {
-            return response()->json(['error' => $e->getMessage()], 422);
+            return response()->json(['error' => $e->getMessage()], $this->networkAuthStatus($e));
         }
 
         return response()->json(['data' => $tender->toArray()]);
@@ -169,14 +172,14 @@ class TenderController extends Controller
     public function close(Request $request, string $id): JsonResponse
     {
         $actorId    = (string) auth()->id();
-        $tenantSlug = (string) $request->header('X-Tenant', '');
+        $tenantSlug = app(TenantContext::class)->slug;
 
         try {
             $tender = $this->service->closeTender($id, $actorId, $tenantSlug);
         } catch (ModelNotFoundException) {
             return response()->json(['error' => 'Network tender not found.'], 404);
         } catch (\RuntimeException $e) {
-            return response()->json(['error' => $e->getMessage()], 422);
+            return response()->json(['error' => $e->getMessage()], $this->networkAuthStatus($e));
         }
 
         return response()->json(['data' => $tender->toArray()]);
@@ -187,21 +190,30 @@ class TenderController extends Controller
     // -------------------------------------------------------------------------
 
     /**
-     * Mark tender as awarded (lifecycle foundation only — no award workflow).
+     * Status-only award is gated — use POST AwardService path.
      */
     public function award(Request $request, string $id): JsonResponse
     {
         $actorId    = (string) auth()->id();
-        $tenantSlug = (string) $request->header('X-Tenant', '');
+        $tenantSlug = app(TenantContext::class)->slug;
 
         try {
             $tender = $this->service->markAwarded($id, $actorId, $tenantSlug);
         } catch (ModelNotFoundException) {
             return response()->json(['error' => 'Network tender not found.'], 404);
         } catch (\RuntimeException $e) {
-            return response()->json(['error' => $e->getMessage()], 422);
+            return response()->json(['error' => $e->getMessage()], $this->networkAuthStatus($e));
         }
 
         return response()->json(['data' => $tender->toArray()]);
+    }
+
+    private function networkAuthStatus(\RuntimeException $e): int
+    {
+        $msg = strtolower($e->getMessage());
+
+        return (str_contains($msg, 'not authorized') || str_contains($msg, 'unauthorized'))
+            ? 403
+            : 422;
     }
 }

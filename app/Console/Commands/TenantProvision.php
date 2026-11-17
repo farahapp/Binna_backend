@@ -11,23 +11,18 @@ use InvalidArgumentException;
 use RuntimeException;
 
 /**
- * TenantProvision — official Artisan command to provision a new tenant.
+ * TenantProvision — legacy direct-provision command for local/testing only.
  *
- * Usage:
+ * Local/testing usage only:
  *   php artisan tenant:provision --slug=acme --name="Acme Corp"
  *
  * Safety guarantees:
  *   - Validates --slug and --name before calling TenantProvisioner.
  *   - Checks for slug conflict and schema_name conflict before delegating.
- *   - In production, requires an explicit --confirm flag (testable without
- *     real interactive input via the TENANT_PROVISION_CONFIRM env variable).
+ *   - Refuses to run outside local/testing; Production onboarding must use
+ *     tenant:provision-registration with an approved request.
  *   - Never prints secrets, connection strings, or schema internals.
  *   - Does NOT execute provisioning itself; delegates entirely to TenantProvisioner.
- *
- * NON-INTERACTIVE PRODUCTION CONFIRMATION (tests / CI only):
- *   Set TENANT_PROVISION_CONFIRM=yes before running.
- *   This path is only accepted when APP_ENV is NOT 'production' in automated
- *   test runs; in a real production shell the operator must pass --confirm.
  *
  * SLUG REGEX (mirrors TenantProvisioner::validateSlug):
  *   /^[a-z0-9][a-z0-9\-]{1,61}[a-z0-9]$/
@@ -37,18 +32,24 @@ class TenantProvision extends Command
     protected $signature = 'tenant:provision
                             {--slug=    : URL-safe tenant identifier (3–63 lowercase alphanumeric/hyphen)}
                             {--name=    : Human-readable tenant name}
-                            {--confirm  : Required in production to prevent accidental runs}';
+                            {--confirm  : Legacy compatibility option; does not enable Production provisioning}';
 
-    protected $description = 'Provision a new tenant (slug + name required; production requires --confirm)';
+    protected $description = 'Legacy direct tenant provisioning (local/testing only; use approved registration in Production)';
 
     /** Slug validation regex — must match TenantProvisioner::validateSlug. */
     private const SLUG_REGEX = '/^[a-z0-9][a-z0-9\-]{1,61}[a-z0-9]$/';
 
-    /** Env variable for non-interactive production confirmation (tests only). */
+    /** Env variable for non-interactive local/testing confirmation (tests only). */
     private const CONFIRM_ENV_VAR = 'TENANT_PROVISION_CONFIRM';
 
     public function handle(TenantProvisioner $provisioner): int
     {
+        if (! app()->environment('local', 'testing')) {
+            $this->error('Direct tenant provisioning is disabled outside local/testing. Provision an approved registration instead.');
+
+            return self::FAILURE;
+        }
+
         // ── 1. Collect and validate inputs ───────────────────────────────────
 
         $slug = trim((string) $this->option('slug'));

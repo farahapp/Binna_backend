@@ -63,6 +63,8 @@ class VerifyTenantMembership
 
     private function switchToTenantSchema(string $schemaName): void
     {
+        $currentDatabase = Config::get('database.connections.tenant.database');
+
         Config::set('database.connections.tenant.driver', 'mysql');
         Config::set('database.connections.tenant.host', Config::get('database.connections.mysql.host'));
         Config::set('database.connections.tenant.port', Config::get('database.connections.mysql.port'));
@@ -74,7 +76,8 @@ class VerifyTenantMembership
         Config::set('database.connections.tenant.prefix', '');
         Config::set('database.connections.tenant.strict', true);
 
-        DB::purge('tenant');
-        DB::reconnect('tenant');
+        if ($currentDatabase !== $schemaName) {
+            DB::connection('tenant')->statement("USE `{$schemaName}`");
+        }
     }
 }

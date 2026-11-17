@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Network;
 
+use App\Foundation\TenantContext;
 use App\Http\Controllers\Controller;
 use App\Network\NetworkProfileVerificationService;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -25,7 +26,7 @@ class NetworkProfileVerificationController extends Controller
                 'evidence.supporting_documents' => 'nullable|array',
                 'evidence.supporting_documents.*' => 'string|max:255',
             ]);
-            $verification = $this->service->submit($profileId, $data['evidence'], (string) auth()->id(), (string) $request->header('X-Tenant'));
+            $verification = $this->service->submit($profileId, $data['evidence'], (string) auth()->id(), app(TenantContext::class)->slug);
             return response()->json(['data' => $verification], 201);
         } catch (ValidationException $e) {
             return response()->json(['errors' => $e->errors()], 422);
@@ -50,7 +51,7 @@ class NetworkProfileVerificationController extends Controller
     public function own(Request $request, string $profileId): JsonResponse
     {
         try {
-            return response()->json(['data' => $this->service->ownerView($profileId, (string) $request->header('X-Tenant'))]);
+            return response()->json(['data' => $this->service->ownerView($profileId, app(TenantContext::class)->slug)]);
         } catch (ModelNotFoundException) {
             return response()->json(['error' => 'Verification not found.'], 404);
         } catch (\RuntimeException $e) {
@@ -104,9 +105,9 @@ class NetworkProfileVerificationController extends Controller
                 $reason = $request->validate(['reason' => 'required|string|max:2000'])['reason'];
             }
             $verification = match ($action) {
-                'approve' => $this->service->approve($profileId, (string) auth()->id(), (string) $request->header('X-Tenant')),
-                'reject' => $this->service->reject($profileId, (string) $reason, (string) auth()->id(), (string) $request->header('X-Tenant')),
-                'revoke' => $this->service->revoke($profileId, (string) $reason, (string) auth()->id(), (string) $request->header('X-Tenant')),
+                'approve' => $this->service->approve($profileId, (string) auth()->id(), app(TenantContext::class)->slug),
+                'reject' => $this->service->reject($profileId, (string) $reason, (string) auth()->id(), app(TenantContext::class)->slug),
+                'revoke' => $this->service->revoke($profileId, (string) $reason, (string) auth()->id(), app(TenantContext::class)->slug),
             };
             return response()->json(['data' => $verification]);
         } catch (ValidationException $e) {

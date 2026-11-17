@@ -9,7 +9,6 @@ use App\Foundation\PlatformPermission;
 use App\Foundation\PlatformRole;
 use App\Foundation\Tenant;
 use App\Foundation\TenantIdentifier;
-use App\Foundation\TenantProvisioner;
 use App\Foundation\PlatformUser;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
@@ -152,6 +151,88 @@ class PlatformIamTest extends TestCase
     }
 
     #[Test]
+    public function full_identifier_view_permission_is_defaulted_only_to_platform_owner(): void
+    {
+        $ownerRole = PlatformRole::on('mysql')->create([
+            'name' => 'Platform Owner',
+            'slug' => 'platform-owner',
+            'is_system' => true,
+        ]);
+        $adminRole = PlatformRole::on('mysql')->create([
+            'name' => 'Platform Admin',
+            'slug' => 'platform-admin',
+            'is_system' => true,
+        ]);
+
+        $migration = require database_path('migrations/shared/2026_11_08_000004_add_tenant_identifier_view_permission.php');
+        $migration->up();
+
+        $permission = PlatformPermission::on('mysql')
+            ->where('name', 'platform.tenants.identifiers.view')
+            ->firstOrFail();
+        $this->assertTrue($ownerRole->permissions()->whereKey($permission->getKey())->exists());
+        $this->assertFalse($adminRole->permissions()->whereKey($permission->getKey())->exists());
+    }
+
+    #[Test]
+    public function only_platform_owner_can_grant_full_identifier_view_permission(): void
+    {
+        $migration = require database_path('migrations/shared/2026_11_08_000004_add_tenant_identifier_view_permission.php');
+        $migration->up();
+        $permissionId = PlatformPermission::on('mysql')
+            ->where('name', 'platform.tenants.identifiers.view')
+            ->value('id');
+        $targetRole = $this->makeRole(['platform.users.view'], 'target');
+
+        $admin = $this->makeOperator();
+        $adminRole = $this->makeRole([
+            'platform.roles.assign-permissions',
+            'platform.permissions.view',
+            'platform.roles.create',
+            'platform.users.assign-roles',
+            'platform.users.create',
+            'platform.roles.view',
+        ], 'platform-admin');
+        $admin->platformRoles()->attach($adminRole->getKey());
+        $this->postJson('/api/platform/roles', [
+            'name' => 'Sensitive role attempt',
+            'permission_ids' => [$permissionId],
+        ], $this->headersFor($admin))->assertForbidden();
+        $this->putJson('/api/platform/roles/'.$targetRole->getKey().'/permissions', [
+            'permission_ids' => [$permissionId],
+        ], $this->headersFor($admin))->assertForbidden();
+
+        $owner = $this->makeOperator();
+        $ownerRole = $this->makeRole(
+            PlatformPermission::on('mysql')->pluck('name')->all(),
+            'platform-owner',
+            true,
+        );
+        $owner->platformRoles()->attach($ownerRole->getKey());
+        $this->assertSame('platform-owner', $owner->platformRoles()->firstOrFail()->slug);
+        $this->app['auth']->forgetGuards();
+        $ownerGrantResponse = $this->putJson('/api/platform/roles/'.$targetRole->getKey().'/permissions', [
+            'permission_ids' => [$permissionId],
+        ], $this->headersFor($owner));
+        $this->assertSame(200, $ownerGrantResponse->status(), $ownerGrantResponse->getContent());
+
+        $this->assertDatabaseHas('platform_role_permissions', [
+            'platform_role_id' => $targetRole->getKey(),
+            'platform_permission_id' => $permissionId,
+        ], 'mysql');
+
+        $targetUser = $this->makeOperator();
+        $this->app['auth']->forgetGuards();
+        $this->putJson('/api/platform/users/'.$targetUser->getKey().'/roles', [
+            'role_ids' => [$targetRole->getKey()],
+        ], $this->headersFor($admin))->assertForbidden();
+        $this->app['auth']->forgetGuards();
+        $this->putJson('/api/platform/users/'.$targetUser->getKey().'/roles', [
+            'role_ids' => [$targetRole->getKey()],
+        ], $this->headersFor($owner))->assertOk();
+    }
+
+    #[Test]
     public function wildcard_pat_does_not_replace_platform_role_authorization(): void
     {
         $operator = $this->makeOperator();
@@ -185,7 +266,7 @@ class PlatformIamTest extends TestCase
         $headers = $this->headersFor($operator);
 
         $this->getJson('/api/platform/tenants', $headers)->assertForbidden();
-        $this->postJson('/api/platform/tenants', [], $headers)->assertForbidden();
+        $this->postJson('/api/platform/tenants', [], $headers)->assertMethodNotAllowed();
         $this->patchJson('/api/platform/tenants/1/suspend', [], $headers)->assertForbidden();
         $this->patchJson('/api/platform/tenants/1/activate', [], $headers)->assertForbidden();
     }
@@ -199,7 +280,7 @@ class PlatformIamTest extends TestCase
         $viewHeaders = $this->headersFor($operator);
 
         $this->getJson('/api/platform/tenants', $viewHeaders)->assertOk();
-        $this->postJson('/api/platform/tenants', [], $viewHeaders)->assertForbidden();
+        $this->postJson('/api/platform/tenants', [], $viewHeaders)->assertMethodNotAllowed();
         $this->patchJson('/api/platform/tenants/1/suspend', [], $viewHeaders)->assertForbidden();
         $this->patchJson('/api/platform/tenants/1/activate', [], $viewHeaders)->assertForbidden();
 
@@ -216,45 +297,21 @@ class PlatformIamTest extends TestCase
         $operator->platformRoles()->attach($ownerRole->getKey());
         $headers = $this->headersFor($operator);
 
-        $this->app->instance(
-            TenantProvisioner::class,
-            \Mockery::mock(TenantProvisioner::class)
-                ->shouldReceive('provision')
-                ->once()
-                ->with('test-platform-tenant', 'Test Platform Tenant')
-                ->andReturnUsing(function (string $slug, string $name): Tenant {
-                    $tenant = new Tenant();
-                    $tenant->setConnection('mysql');
-                    $tenant->slug = $slug;
-                    $tenant->name = $name;
-                    $tenant->schema_name = Tenant::deriveSchemaName($slug);
-                    $tenant->status = 'active';
-
-                    return $tenant;
-                })
-                ->getMock()
-        );
-
         $this->postJson('/api/platform/tenants', [
             'name' => 'Test Platform Tenant',
             'legal_type' => 'organization',
             'activity_type' => 'contractor',
-            'identifiers' => [
-                ['type' => 'cr', 'number' => 'CR-12345', 'validity_status' => 'valid'],
-            ],
-        ], $headers)->assertUnprocessable();
+            'identifiers' => [['type' => 'cr', 'number' => 'CR-12345']],
+        ], $headers)->assertMethodNotAllowed();
 
-        $created = $this->postJson('/api/platform/tenants', [
-            'name' => 'Test Platform Tenant',
-            'legal_type' => 'organization',
-            'activity_type' => 'contractor',
-            'identifiers' => [
-                ['type' => 'cr', 'number' => 'CR-12345'],
-            ],
-        ], $headers)->assertCreated()
-            ->assertJsonPath('tenant.identifiers.0.validity_status', 'unverified');
-        $tenantId = $created->json('tenant.id');
-
+        $tenant = new Tenant();
+        $tenant->setConnection('mysql');
+        $tenant->slug = 'existing-platform-tenant';
+        $tenant->name = 'Existing Platform Tenant';
+        $tenant->schema_name = Tenant::deriveSchemaName($tenant->slug);
+        $tenant->status = 'active';
+        $tenant->save();
+        $tenantId = $tenant->id;
         $this->patchJson('/api/platform/tenants/'.$tenantId, [
             'name' => 'Updated Platform Tenant',
         ], $headers)->assertOk()
@@ -489,7 +546,7 @@ class PlatformIamTest extends TestCase
     }
 
     #[Test]
-    public function platform_login_and_auth_me_remain_available_before_iam_migration(): void
+    public function platform_login_and_auth_me_remain_available_but_tenant_list_fails_closed_before_iam_migration(): void
     {
         $operator = $this->makeOperator();
         Schema::connection('mysql')->drop('platform_audit_entries');
@@ -505,8 +562,14 @@ class PlatformIamTest extends TestCase
         Schema::connection('mysql')->drop('platform_roles');
 
         $token = $operator->createPlatformToken('pre-migration-test', ['platform:*'])->plainTextToken;
+        $headers = ['Authorization' => 'Bearer '.$token];
+
+        $this->getJson('/api/platform/tenants?page=1&per_page=20', $headers)
+            ->assertForbidden()
+            ->assertJsonPath('error', 'The required platform permission is missing.');
+
         $this->getJson('/api/platform/auth/me', [
-            'Authorization' => 'Bearer '.$token,
+            'Authorization' => $headers['Authorization'],
         ])->assertOk()
             ->assertJsonPath('roles', [])
             ->assertJsonPath('permissions', []);

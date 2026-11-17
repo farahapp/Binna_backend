@@ -122,45 +122,6 @@ return [
             ]) : [],
         ],
 
-        /*
-         * DEC-MYSQL-001 — Provisioning-only connection.
-         *
-         * This connection is used EXCLUSIVELY by TenantProvisioner (via CLI) to:
-         *   - CREATE DATABASE for new tenant schemas
-         *   - GRANT exact per-schema privileges to the runtime user
-         *
-         * It MUST NOT be used by the application runtime (HTTP requests, jobs, queues).
-         * The provisioning user requires: CREATE, GRANT OPTION on *.* (or specific schemas).
-         * The runtime user (DB_USERNAME) must NOT have GRANT OPTION or DDL privileges.
-         *
-         * Required env vars (independent from the runtime connection):
-         *   PROVISIONING_DB_URL      (optional; no runtime fallback)
-         *   PROVISIONING_DB_HOST     (defaults to 127.0.0.1)
-         *   PROVISIONING_DB_PORT     (defaults to 3306)
-         *   PROVISIONING_DB_DATABASE (NO default — must be set explicitly)
-         *   PROVISIONING_DB_USERNAME (NO default — must be set explicitly)
-         *   PROVISIONING_DB_PASSWORD (NO default — must be set explicitly)
-         */
-        'mysql_provisioning' => [
-            'driver'    => 'mysql',
-            'url'       => env('PROVISIONING_DB_URL'),
-            'host'      => env('PROVISIONING_DB_HOST', '127.0.0.1'),
-            'port'      => env('PROVISIONING_DB_PORT', '3306'),
-            'database'  => env('PROVISIONING_DB_DATABASE'),
-            'username'  => env('PROVISIONING_DB_USERNAME'),
-            'password'  => env('PROVISIONING_DB_PASSWORD'),
-            'unix_socket' => env('PROVISIONING_DB_SOCKET', ''),
-            'charset'   => env('PROVISIONING_DB_CHARSET', 'utf8mb4'),
-            'collation' => env('PROVISIONING_DB_COLLATION', 'utf8mb4_unicode_ci'),
-            'prefix'    => '',
-            'prefix_indexes' => true,
-            'strict'    => true,
-            'engine'    => null,
-            'options'   => extension_loaded('pdo_mysql') ? array_filter([
-                BINAA2_PDO_MYSQL_ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
-            ]) : [],
-        ],
-
         'mariadb' => [
             'driver' => 'mariadb',
             'url' => env('DB_URL'),
@@ -211,6 +172,31 @@ return [
             // 'trust_server_certificate' => env('DB_TRUST_SERVER_CERTIFICATE', 'false'),
         ],
 
+    ],
+
+    /*
+     * DEC-MYSQL-001 — Provisioning-only connection configuration.
+     * This is intentionally outside `connections`; the access guard exposes it
+     * to Laravel's database manager only inside tenant:provision-registration.
+     */
+    'provisioning_connection' => [
+        'driver' => 'mysql_provisioning',
+        'url' => env('PROVISIONING_DB_URL'),
+        'host' => env('PROVISIONING_DB_HOST', '127.0.0.1'),
+        'port' => env('PROVISIONING_DB_PORT', '3306'),
+        'database' => env('PROVISIONING_DB_DATABASE'),
+        'username' => env('PROVISIONING_DB_USERNAME'),
+        'password' => env('PROVISIONING_DB_PASSWORD'),
+        'unix_socket' => env('PROVISIONING_DB_SOCKET', ''),
+        'charset' => env('PROVISIONING_DB_CHARSET', 'utf8mb4'),
+        'collation' => env('PROVISIONING_DB_COLLATION', 'utf8mb4_unicode_ci'),
+        'prefix' => '',
+        'prefix_indexes' => true,
+        'strict' => true,
+        'engine' => null,
+        'options' => extension_loaded('pdo_mysql') ? array_filter([
+            BINAA2_PDO_MYSQL_ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
+        ]) : [],
     ],
 
     /*

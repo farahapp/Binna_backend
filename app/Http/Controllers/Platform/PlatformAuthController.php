@@ -9,6 +9,7 @@ use App\Foundation\PlatformUser;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
@@ -18,10 +19,12 @@ use Illuminate\Validation\ValidationException;
  * PlatformAuthController — Platform operator authentication.
  *
  * Handles login/logout/me for BINAA2 platform operators (not tenant users).
- * Uses the 'platform' Sanctum guard backed by the shared-schema platform_users table.
+ * Uses a PlatformUser session for browsers and a separate mysql-backed PAT guard for mobile.
  *
  * Routes (no X-Tenant header required — platform routes are tenant-agnostic):
  *   POST /api/platform/auth/login            — issue a platform PAT
+ *   POST /api/platform/auth/web/login        — establish a PlatformUser session, without a PAT
+ *   POST /api/platform/auth/web/logout       — end only the PlatformUser session
  *   POST /api/platform/auth/logout           — revoke the current platform PAT
  *   GET  /api/platform/auth/me               — return the authenticated operator's profile
  *   POST /api/platform/auth/change-password  — change the authenticated operator's password
@@ -34,6 +37,58 @@ use Illuminate\Validation\ValidationException;
  */
 class PlatformAuthController extends Controller
 {
+    /**
+     * Browser-only Platform Admin login using the dedicated session guard.
+     * This endpoint never issues a Personal Access Token.
+     */
+    public function webLogin(Request $request, PlatformAuditService $audit): JsonResponse
+    {
+        $credentials = $request->validate([
+            'email' => ['required', 'email'],
+            'password' => ['required', 'string'],
+        ]);
+
+        /** @var PlatformUser|null $operator */
+        $operator = PlatformUser::on('mysql')->where('email', $credentials['email'])->first();
+        if (! $operator || ! Hash::check($credentials['password'], $operator->password)) {
+            throw ValidationException::withMessages([
+                'email' => ['The provided credentials are incorrect.'],
+            ]);
+        }
+
+        if (! $operator->isActive()) {
+            return response()->json(['error' => 'Platform operator account is inactive.'], 403);
+        }
+
+        Auth::guard('platform-web')->login($operator);
+        $request->session()->regenerate();
+        $audit->recordIfAvailable($operator, 'platform.auth.web_login', 'platform_user', $operator->getKey());
+
+        return response()->json([
+            'message' => 'Logged in successfully.',
+            'user' => [
+                'id' => $operator->getKey(),
+                'name' => $operator->name,
+                'email' => $operator->email,
+                'is_active' => $operator->is_active,
+            ],
+        ]);
+    }
+
+    /** Log out only the Platform session guard, preserving any tenant session. */
+    public function webLogout(Request $request, PlatformAuditService $audit): JsonResponse
+    {
+        /** @var PlatformUser $operator */
+        $operator = Auth::guard('platform-web')->user();
+        $audit->recordIfAvailable($operator, 'platform.auth.web_logout', 'platform_user', $operator->getKey());
+
+        Auth::guard('platform-web')->logout();
+        $request->session()->regenerate();
+        $request->session()->regenerateToken();
+
+        return response()->json(['message' => 'Logged out successfully.']);
+    }
+
     /**
      * Login: validate credentials, issue a platform Sanctum PAT.
      *
@@ -96,10 +151,18 @@ class PlatformAuthController extends Controller
     {
         $bearerToken = $request->bearerToken();
 
-        // Revoke via the HasApiTokens currentAccessToken() — works for both
-        // PAT (bearer token) and session-based auth. Falls back to raw DB delete
-        // if currentAccessToken() is not available (e.g. unauthenticated call).
         $operator = $request->user();
+        $sessionOperator = Auth::guard('platform-web')->user();
+
+        if ($operator instanceof PlatformUser && $sessionOperator?->is($operator)) {
+            $audit->recordIfAvailable($operator, 'platform.auth.web_logout', 'platform_user', $operator->getKey());
+            Auth::guard('platform-web')->logout();
+            $request->session()->regenerate();
+            $request->session()->regenerateToken();
+
+            return response()->json(['message' => 'Logged out successfully.']);
+        }
+
         if ($operator && method_exists($operator, 'currentAccessToken')) {
             DB::connection('mysql')->transaction(function () use ($audit, $operator): void {
                 $currentToken = $operator->currentAccessToken();

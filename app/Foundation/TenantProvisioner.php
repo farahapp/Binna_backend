@@ -7,28 +7,32 @@ namespace App\Foundation;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use RuntimeException;
+use App\Registration\RegistrationAuditService;
+use App\Registration\TenantRegistrationRequest;
+use App\Registration\TenantRegistrationIdentityAuditEvent;
+use App\Registration\TenantRegistrationService;
+use App\Foundation\TenantSetting;
 
 /**
  * TenantProvisioner — creates a new tenant following the NEW-002 lifecycle:
  *
  *   1. Insert Tenant record (status = pending) in shared schema.
  *   2. CREATE DATABASE for the tenant schema (server-generated name).
- *   3. GRANT exact per-schema DML privileges to the runtime user (DEC-MYSQL-001).
- *   4. Verify grants were applied — tenant stays pending if verification fails.
- *   5. Apply the per-tenant baseline migration (schema_info marker — Batch 1).
- *   6. Apply IAM migrations (users, roles, permissions, PATs — Batch 2).
- *   7. Apply all domain migrations (CRM, Projects, Finance, etc. — Batch 3).
- *   8. Record all migrations in tenant_migrations.
- *   9. Set status = active.
+ *   3. Apply and record the per-tenant baseline migration.
+ *   4. Apply and record IAM migrations.
+ *   5. Apply and record all domain migrations.
+ *   6. Verify the exact-schema runtime grants applied by the authorized external operator.
+ *   7. Finalize registration data, then set status = active.
  *
- * A tenant is NEVER activated unless ALL steps (2–7) succeed.
+ * A tenant is NEVER activated unless schema creation, migrations, grant verification,
+ * and registration finalization all succeed.
  * This guarantees that every active tenant has a login-ready schema with
  * correct, verified MySQL privileges.
  *
- * DEC-MYSQL-001 (Path A) changes:
- *   - createSchema() uses the `mysql_provisioning` connection (not runtime).
- *   - grantAndVerify() grants exact DML-only privileges to the runtime user.
- *   - The runtime `tenant` connection user must NOT have GRANT OPTION or DDL.
+ * DEC-MYSQL-001 (Path A):
+ *   - Schema creation and migrations use the separate provisioning connection.
+ *   - Runtime grants are applied by the authorized external operator and verified here.
+ *   - Laravel does not issue GRANT; runtime has no GRANT OPTION or DDL.
  *
  * schema_name is ALWAYS derived server-side from the slug.
  * The client MUST NOT supply schema_name.
@@ -62,6 +66,7 @@ class TenantProvisioner
         // Direct assignment is intentional: schema_name is not in $fillable
         // because it must never be accepted from client input.
         $schemaName = Tenant::deriveSchemaName($slug);
+        $this->assertSchemaDoesNotExist($schemaName);
 
         /** @var Tenant $tenant */
         $tenant = new Tenant([
@@ -72,46 +77,161 @@ class TenantProvisioner
         $tenant->schema_name = $schemaName;
         $tenant->save();
 
-        try {
-            // Step 2 — Create the MySQL database/schema via provisioning connection.
-            // DEC-MYSQL-001: createSchema uses mysql_provisioning, not the runtime user.
-            $this->createSchema($schemaName);
+        return $this->provisionPendingTenant($tenant, $slug);
+    }
 
-            // Step 3 & 4 — GRANT exact DML privileges to the runtime user and verify.
-            // DEC-MYSQL-001: If GRANT or verification fails, tenant stays pending.
+    /**
+     * Provision only an already-approved registration through the operator CLI.
+     * The request is linked to a pending tenant before DDL begins so retries can
+     * resume that tenant instead of creating another one.
+     */
+    public function provisionRegistration(int $requestId): Tenant
+    {
+        $lockName = 'binaa2_regprov_'.$requestId;
+        $lockResult = DB::connection('mysql_provisioning')
+            ->selectOne('SELECT GET_LOCK(?, 0) AS acquired', [$lockName]);
+        if ((int) ($lockResult->acquired ?? 0) !== 1) {
+            throw new RuntimeException('Provisioning is already running for this registration.');
+        }
+
+        try {
+            $registration = TenantRegistrationRequest::on('mysql')->findOrFail($requestId);
+            if ($registration->status !== 'approved_pending_provisioning') {
+                throw new RuntimeException('Only an approved registration can be provisioned.');
+            }
+            app(TenantRegistrationService::class)->assertReadyForProvisioning($registration);
+
+            $allowExistingSchema = false;
+            $tenant = DB::connection('mysql')->transaction(function () use ($requestId, &$allowExistingSchema): Tenant {
+                $locked = TenantRegistrationRequest::on('mysql')->whereKey($requestId)->lockForUpdate()->firstOrFail();
+                if ($locked->status !== 'approved_pending_provisioning') {
+                    throw new RuntimeException('Registration approval changed before provisioning began.');
+                }
+
+                if ($locked->tenant_id !== null) {
+                    $existing = Tenant::on('mysql')->whereKey($locked->tenant_id)->firstOrFail();
+                    $expectedSchema = Tenant::deriveSchemaName($locked->slug);
+                    if (
+                        $existing->status !== 'pending'
+                        || $existing->slug !== $locked->slug
+                        || $existing->schema_name !== $expectedSchema
+                    ) {
+                        throw new RuntimeException('The linked tenant is not in a resumable pending state.');
+                    }
+
+                    $allowExistingSchema = TenantMigration::on('mysql')
+                        ->where('tenant_id', $existing->id)
+                        ->exists();
+
+                    return $existing;
+                }
+
+                $this->validateSlug($locked->slug);
+                $schemaName = Tenant::deriveSchemaName($locked->slug);
+                $this->assertSchemaDoesNotExist($schemaName);
+                $tenant = new Tenant([
+                    'slug' => $locked->slug,
+                    'name' => $locked->name,
+                    'legal_type' => $locked->legal_type,
+                    'activity_type' => $locked->activity_type,
+                    'phone' => $locked->phone,
+                    'email' => $locked->applicant_email,
+                    'responsible_name' => $locked->responsible_name,
+                    'responsible_qid' => $locked->responsible_qid,
+                    'qid_expires_at' => $locked->qid_expires_at,
+                    'status' => 'pending',
+                ]);
+                $tenant->schema_name = $schemaName;
+                $tenant->save();
+                $locked->tenant_id = $tenant->id;
+                $locked->save();
+
+                return $tenant;
+            });
+
+            $this->provisionPendingTenant($tenant, $tenant->slug, function (Tenant $provisionedTenant): void {
+                DB::connection('mysql')->transaction(function () use ($provisionedTenant): void {
+                    $registration = TenantRegistrationRequest::on('mysql')
+                        ->where('tenant_id', $provisionedTenant->id)
+                        ->lockForUpdate()
+                        ->firstOrFail();
+                    if ($registration->status !== 'approved_pending_provisioning') {
+                        throw new RuntimeException('Registration is no longer awaiting provisioning.');
+                    }
+                    app(TenantRegistrationService::class)->assertReadyForProvisioning($registration);
+
+                    $identifiers = $registration->identifiers()->get();
+                    foreach ($identifiers as $identifier) {
+                        $identifier->tenant_id = $provisionedTenant->id;
+                        $identifier->registration_request_id = null;
+                        $identifier->save();
+                    }
+                    TenantSetting::on('mysql')->updateOrCreate(
+                        ['tenant_id' => $provisionedTenant->id, 'key' => 'registration.request_number'],
+                        ['value' => $registration->request_number],
+                    );
+
+                    $from = $registration->status;
+                    $registration->status = 'provisioned';
+                    $registration->save();
+                    app(RegistrationAuditService::class)->record(
+                        $registration->id,
+                        'operator',
+                        null,
+                        'provisioning.completed',
+                        $from,
+                        'provisioned',
+                    );
+                    TenantRegistrationIdentityAuditEvent::create([
+                        'actor_type' => 'operator',
+                        'actor_id' => null,
+                        'subject_type' => 'tenant',
+                        'subject_id' => $provisionedTenant->id,
+                        'event' => 'tenant.provisioned_from_registration',
+                        'metadata' => ['registration_request_id' => $registration->id],
+                        'created_at' => now(),
+                    ]);
+                });
+            }, $allowExistingSchema);
+
+            return Tenant::on('mysql')->findOrFail($tenant->id);
+        } finally {
+            DB::connection('mysql_provisioning')
+                ->selectOne('SELECT RELEASE_LOCK(?) AS released', [$lockName]);
+        }
+    }
+
+    private function provisionPendingTenant(
+        Tenant $tenant,
+        string $slug,
+        ?callable $beforeActivation = null,
+        bool $allowExistingSchema = false,
+    ): Tenant {
+        $schemaName = Tenant::deriveSchemaName($slug);
+
+        try {
+            $this->createSchema($schemaName, $allowExistingSchema);
             $runtimeUser = config('database.connections.tenant.username')
                 ?? config('database.connections.mysql.username')
                 ?? env('DB_USERNAME');
-            // DEC-MYSQL-002: Use 127.0.0.1 to match the binaa2_runtime MySQL account host.
-            // The runtime user is created with @127.0.0.1 (not @%), so granting to @%
-            // would fail in MySQL 8.4+ with ERROR 1410 (cannot create user via GRANT).
             $runtimeHost = config('database.connections.mysql.host', '127.0.0.1');
-
-            $this->grantor->grantAndVerify($schemaName, $runtimeUser, $runtimeHost);
-
-            // Step 5 — Apply baseline migration (schema_info — Batch 1) and record it.
             $this->baselineMigrator->run($tenant);
-
-            // Step 6 — Apply IAM migrations (users, roles, permissions, PATs — Batch 2).
-            // This MUST succeed before the tenant is activated. If it fails, the tenant
-            // remains in 'pending' status and cannot be used for login.
             $this->iamMigrator->run($tenant);
-
-            // Step 7 — Apply all domain migrations (CRM, Projects, Finance, HR, etc. — Batch 3).
-            // PROV-DOM-001: This was the missing step that caused new tenants to have only
-            // schema_info + IAM tables, with no business-domain tables at all.
-            // DomainMigrator iterates database/migrations/{domain}/ directories in dependency
-            // order, applies each migration file against the tenant schema via the provisioning
-            // connection, and records each result in tenant_migrations.
-            // The tenant is NOT activated if any domain migration fails.
             $this->domainMigrator->run($tenant);
+            $this->grantor->verifyGrantedPrivileges($schemaName, $runtimeUser, $runtimeHost);
 
-            // Step 8 — Activate the tenant only after ALL steps succeed.
-            $tenant->status = 'active';
-            $tenant->save();
+            DB::connection('mysql')->transaction(function () use ($tenant, $beforeActivation): void {
+                if ($beforeActivation !== null) {
+                    $beforeActivation($tenant);
+                }
+                $lockedTenant = Tenant::on('mysql')->whereKey($tenant->id)->lockForUpdate()->firstOrFail();
+                if ($lockedTenant->status !== 'pending') {
+                    throw new RuntimeException('Tenant is not pending and cannot be activated.');
+                }
+                $lockedTenant->status = 'active';
+                $lockedTenant->save();
+            });
         } catch (\Throwable $e) {
-            // Leave tenant in 'pending' so ops can retry or clean up.
-            // Both migrators record 'failed' entries in tenant_migrations for diagnostics.
             throw new RuntimeException(
                 "Tenant provisioning failed for slug [{$slug}]: ".$e->getMessage(),
                 previous: $e,
@@ -133,31 +253,64 @@ class TenantProvisioner
             );
         }
 
-        // DEC-MYSQL-001: Use mysql_provisioning — same reason as TenantProvision::handle().
-        // The default mysql connection is not guaranteed to reach the shared schema
-        // in production (root@localhost is rejected by MySQL 8.4 auth_socket).
+        // The guarded provisioning connection is exposed only by the approved
+        // tenant:provision-registration command.
         if (Tenant::on('mysql_provisioning')->where('slug', $slug)->exists()) {
             throw new \InvalidArgumentException("Tenant slug [{$slug}] is already taken.");
         }
     }
 
+    private function assertSchemaDoesNotExist(string $schemaName): void
+    {
+        $existing = DB::connection('mysql_provisioning')->selectOne(
+            'SELECT SCHEMA_NAME FROM information_schema.SCHEMATA WHERE SCHEMA_NAME = ?',
+            [$schemaName],
+        );
+
+        if ($existing !== null) {
+            throw new RuntimeException(
+                "Tenant schema collision for [{$schemaName}]: an unlinked schema already exists."
+            );
+        }
+    }
+
     /**
-     * CREATE DATABASE IF NOT EXISTS `{schemaName}` using the PROVISIONING connection.
+     * CREATE DATABASE `{schemaName}` using the operator-only provisioning connection.
      *
      * DEC-MYSQL-001: Uses mysql_provisioning connection (not runtime user).
      * The schema name is validated server-side before use.
      */
-    private function createSchema(string $schemaName): void
+    private function createSchema(string $schemaName, bool $allowExistingSchema = false): void
     {
         // Extra safety: only allow names matching our server-generated pattern.
         if (! preg_match('/^binaa2_tenant_[a-z0-9_]+$/', $schemaName)) {
             throw new RuntimeException("Unsafe schema name [{$schemaName}] rejected.");
         }
 
+        $existing = DB::connection('mysql_provisioning')->selectOne(
+            'SELECT SCHEMA_NAME FROM information_schema.SCHEMATA WHERE SCHEMA_NAME = ?',
+            [$schemaName],
+        );
+        if ($existing !== null) {
+            if ($allowExistingSchema) {
+                return;
+            }
+
+            throw new RuntimeException(
+                "Tenant schema collision for [{$schemaName}]: existing schema ownership is not established."
+            );
+        }
+
+        if ($allowExistingSchema) {
+            throw new RuntimeException(
+                "Tenant schema [{$schemaName}] is missing during provisioning resume; refusing to recreate it."
+            );
+        }
+
         // Use backtick-quoted identifier — PDO does not support binding identifiers.
-        // DEC-MYSQL-001: Use provisioning connection for DDL operations.
+        // Plain CREATE also fails closed if a schema appears after the preflight query.
         DB::connection('mysql_provisioning')->statement(
-            "CREATE DATABASE IF NOT EXISTS `{$schemaName}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"
+            "CREATE DATABASE `{$schemaName}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"
         );
     }
 }

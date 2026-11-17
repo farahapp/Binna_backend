@@ -129,6 +129,37 @@ class AccountingHttpApiTest extends TestCase
         $response->assertJsonFragment(['status' => 'active']);
     }
 
+    /**
+     * Core Ecosystem Phase A — TENANT ISOLATION:
+     * Client-supplied tenant_slug must not override TenantContext authority.
+     *
+     * @test
+     */
+    public function create_account_ignores_forged_client_tenant_slug(): void
+    {
+        $response = $this->withHeaders($this->authHeaders())
+            ->postJson('/api/v1/accounting/accounts', [
+                'tenant_slug'  => 'forged-other-tenant',
+                'account_code' => 'ISO-1000',
+                'name'         => 'Isolation Probe Account',
+                'account_type' => 'ASSET',
+            ]);
+
+        $response->assertStatus(201);
+        $response->assertJsonFragment(['account_code' => 'ISO-1000']);
+        $response->assertJsonMissing(['tenant_slug' => 'forged-other-tenant']);
+
+        $this->assertDatabaseHas('accounts', [
+            'account_code' => 'ISO-1000',
+            'tenant_slug'  => $this->tenantSlug,
+        ], 'tenant');
+
+        $this->assertDatabaseMissing('accounts', [
+            'account_code' => 'ISO-1000',
+            'tenant_slug'  => 'forged-other-tenant',
+        ], 'tenant');
+    }
+
     /** @test */
     public function create_account_returns_422_for_invalid_type(): void
     {

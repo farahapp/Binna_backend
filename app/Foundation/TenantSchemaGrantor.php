@@ -11,20 +11,18 @@ use RuntimeException;
  * TenantSchemaGrantor — DEC-MYSQL-001 (Path A)
  *
  * Responsibilities:
- *   1. GRANT exact per-schema privileges to the runtime user on a newly
- *      created tenant schema, using the provisioning connection.
- *   2. Verify the grants were applied before the tenant is activated.
+ *   1. Verify the exact per-schema privileges granted externally to the runtime user.
+ *   2. Block tenant activation until those grants are present.
  *
- * GRANT is performed via the `mysql_provisioning` connection which requires
- * GRANT OPTION. The runtime connection (`tenant`) must NOT have GRANT OPTION
- * or any DDL privileges (CREATE TABLE, DROP, ALTER, etc.).
+ * The approved operator performs GRANT outside Laravel. This class uses the
+ * `mysql_provisioning` connection only to read INFORMATION_SCHEMA. The runtime
+ * connection (`tenant`) must NOT have GRANT OPTION or DDL privileges.
  *
- * CLI-ONLY GUARD:
- *   This class MUST only be instantiated from CLI context (Artisan commands).
- *   Calling it from an HTTP request throws a RuntimeException immediately.
+ * The database connection itself is available only within the explicitly
+ * authorized tenant:provision-registration command scope.
  *
- * EXACT PRIVILEGES GRANTED (DML only — no DDL):
- *   SELECT, INSERT, UPDATE, DELETE, INDEX, REFERENCES
+ * RUNTIME PRIVILEGES VERIFIED (DML only — no DDL):
+ *   SELECT, INSERT, UPDATE, DELETE
  *
  * DDL privileges (CREATE TABLE, DROP, ALTER, CREATE INDEX) are intentionally
  * excluded from the runtime user grant. Migrations are run via the provisioning
@@ -33,10 +31,15 @@ use RuntimeException;
 class TenantSchemaGrantor
 {
     /**
-     * Exact DML privileges granted to the runtime user per tenant schema.
-     * DDL privileges are intentionally excluded.
+     * Runtime DML privileges required per tenant schema.
+     * Migration-only privileges such as INDEX and REFERENCES are excluded.
      */
-    private const RUNTIME_PRIVILEGES = 'SELECT, INSERT, UPDATE, DELETE, INDEX, REFERENCES';
+    private const RUNTIME_PRIVILEGES = [
+        'SELECT',
+        'INSERT',
+        'UPDATE',
+        'DELETE',
+    ];
 
     /**
      * @throws RuntimeException if called outside CLI context
@@ -47,17 +50,16 @@ class TenantSchemaGrantor
     }
 
     /**
-     * Grant exact per-schema privileges to the runtime user on the given schema,
-     * then verify the grants were applied.
+     * Verify the exact per-schema privileges applied externally to the runtime user.
      *
      * @param  string  $schemaName   Validated tenant schema name (binaa2_tenant_*)
      * @param  string  $runtimeUser  MySQL username of the runtime connection (DB_USERNAME)
      * @param  string  $runtimeHost  MySQL host for the runtime user (default '%')
      * @return void
      *
-     * @throws RuntimeException if GRANT fails or verification fails
+     * @throws RuntimeException if configuration or external-grant verification fails
      */
-    public function grantAndVerify(string $schemaName, string $runtimeUser, string $runtimeHost = '%'): void
+    public function verifyGrantedPrivileges(string $schemaName, string $runtimeUser, string $runtimeHost = '%'): void
     {
         $this->assertSafeSchemaName($schemaName);
         $this->assertSafeIdentifier($runtimeUser, 'runtime user');
@@ -65,16 +67,7 @@ class TenantSchemaGrantor
 
         $this->assertProvisioningConnectionConfigured();
 
-        // Execute GRANT via provisioning connection (requires GRANT OPTION).
-        $this->executeGrant($schemaName, $runtimeUser, $runtimeHost);
-
-        // Note: FLUSH PRIVILEGES is intentionally omitted.
-        // GRANT/REVOKE/CREATE USER statements apply immediately in MySQL 8+
-        // without requiring FLUSH. Calling FLUSH PRIVILEGES after GRANT causes
-        // an implicit commit that breaks DatabaseTransactions in tests and
-        // requires the RELOAD privilege on the provisioning account unnecessarily.
-
-        // Verify grants were applied — tenant stays pending if this fails.
+        // The authorized external operator applies GRANT; Laravel only verifies it.
         $this->verifyGrant($schemaName, $runtimeUser, $runtimeHost);
     }
 
@@ -87,7 +80,7 @@ class TenantSchemaGrantor
         if (! $this->isRunningInConsole()) {
             throw new RuntimeException(
                 'TenantSchemaGrantor MUST only be used from CLI context (Artisan commands). '
-                . 'GRANT operations are not permitted from HTTP request context.'
+                .                 'Grant verification is not permitted from HTTP request context.'
             );
         }
     }
@@ -103,8 +96,8 @@ class TenantSchemaGrantor
 
     private function assertProvisioningConnectionConfigured(): void
     {
-        $username = config('database.connections.mysql_provisioning.username');
-        $password = config('database.connections.mysql_provisioning.password');
+        $username = config('database.provisioning_connection.username');
+        $password = config('database.provisioning_connection.password');
 
         if (empty($username) || empty($password)) {
             throw new RuntimeException(
@@ -136,28 +129,6 @@ class TenantSchemaGrantor
         }
     }
 
-    private function executeGrant(string $schemaName, string $runtimeUser, string $runtimeHost): void
-    {
-        // Backtick-quote schema name (validated above). User/host use single-quote quoting.
-        $sql = sprintf(
-            "GRANT %s ON `%s`.* TO '%s'@'%s'",
-            self::RUNTIME_PRIVILEGES,
-            $schemaName,
-            $runtimeUser,
-            $runtimeHost
-        );
-
-        try {
-            DB::connection('mysql_provisioning')->statement($sql);
-        } catch (\Throwable $e) {
-            throw new RuntimeException(
-                "GRANT failed for schema [{$schemaName}] to user [{$runtimeUser}@{$runtimeHost}]: "
-                . $e->getMessage(),
-                previous: $e,
-            );
-        }
-    }
-
     private function verifyGrant(string $schemaName, string $runtimeUser, string $runtimeHost): void
     {
         // Query information_schema.SCHEMA_PRIVILEGES — readable by the provisioning
@@ -175,14 +146,14 @@ class TenantSchemaGrantor
         // TABLE_SCHEMA matches the schema name exactly (case-insensitive on most
         // platforms, but we pass the exact name used in the GRANT statement).
         //
-        // We collect all PRIVILEGE_TYPE rows for the exact GRANTEE+TABLE_SCHEMA
-        // combination and verify all six required privileges are present.
+        // We collect privilege and grantability rows for the exact
+        // GRANTEE+TABLE_SCHEMA combination and enforce the approved Runtime set.
         // A single row per privilege is returned (not one row with Y/N columns).
         // An empty result set means no grant exists for this user+schema pair.
         $grantee = sprintf("'%s'@'%s'", $runtimeUser, $runtimeHost);
 
         $rows = DB::connection('mysql_provisioning')->select(
-            'SELECT PRIVILEGE_TYPE
+            'SELECT PRIVILEGE_TYPE, IS_GRANTABLE
              FROM   information_schema.SCHEMA_PRIVILEGES
              WHERE  GRANTEE      = ?
                AND  TABLE_SCHEMA = ?',
@@ -205,15 +176,33 @@ class TenantSchemaGrantor
             $rows
         );
 
-        // All six DML privileges that must be present (DDL intentionally excluded).
-        $required = ['SELECT', 'INSERT', 'UPDATE', 'DELETE', 'INDEX', 'REFERENCES'];
-
-        $missing = array_values(array_diff($required, $granted));
+        $missing = array_values(array_diff(self::RUNTIME_PRIVILEGES, $granted));
+        $unexpected = array_values(array_diff($granted, self::RUNTIME_PRIVILEGES));
+        $grantable = array_filter(
+            $rows,
+            static fn (object $r): bool => strtoupper((string) ($r->IS_GRANTABLE ?? '')) !== 'NO',
+        );
 
         if (! empty($missing)) {
             throw new RuntimeException(
                 "GRANT verification failed for schema [{$schemaName}]: "
                 . 'Missing privileges: ' . implode(', ', $missing) . '. '
+                . 'Tenant will remain in pending status.'
+            );
+        }
+
+        if (! empty($unexpected)) {
+            throw new RuntimeException(
+                "Runtime privilege verification failed for schema [{$schemaName}]: "
+                . 'Unexpected privileges: ' . implode(', ', array_unique($unexpected)) . '. '
+                . 'Tenant will remain in pending status.'
+            );
+        }
+
+        if (! empty($grantable)) {
+            throw new RuntimeException(
+                "Runtime privilege verification failed for schema [{$schemaName}]: "
+                . 'A schema privilege is grantable or its grantability could not be verified. '
                 . 'Tenant will remain in pending status.'
             );
         }
