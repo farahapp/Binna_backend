@@ -36,17 +36,12 @@ class RegistrationAttachmentService
             ? Str::lower(trim($documentType))
             : null;
 
-        if ($documentType !== null) {
-            $accepted = $registration->attachments()
-                ->where('document_type', $documentType)
-                ->where('is_current', true)
-                ->where('review_status', 'accepted')
-                ->exists();
-            if ($accepted) {
-                // New version replaces accepted copy; prior accepted row is superseded for review.
-            }
-        }
+        // Re-uploading a document type supersedes any current copy for review;
+        // the accepted copy is retained as a non-current version for audit history.
+        // (Handled by the `is_current` flip below — no separate branch needed.)
 
+        // Detect from the file signature so the persisted MIME type matches the
+        // value validated in assertSafeUpload(), even when finfo is unavailable.
         $detectedMime = $this->detectMime($file);
         $extension = strtolower($file->getClientOriginalExtension());
         $path = $file->storeAs(
@@ -162,6 +157,13 @@ class RegistrationAttachmentService
 
     private function detectMime(UploadedFile $file, string $head = ''): string
     {
+        if ($head === '') {
+            $path = $file->getRealPath() ?: $file->getPathname();
+            $head = is_string($path) && $path !== ''
+                ? (@file_get_contents($path, false, null, 0, 16) ?: '')
+                : '';
+        }
+
         if (str_starts_with($head, '%PDF')) {
             return 'application/pdf';
         }
@@ -184,10 +186,8 @@ class RegistrationAttachmentService
             }
         }
 
-        $fallback = $file->getMimeType() ?? 'application/octet-stream';
-
-        return in_array($fallback, self::ALLOWED_MIME_TYPES, true)
-            ? $fallback
-            : $fallback;
+        // Fall back to the framework-detected MIME. assertSafeUpload() rejects
+        // any value outside ALLOWED_MIME_TYPES, so callers only ever see allowed types.
+        return $file->getMimeType() ?? 'application/octet-stream';
     }
 }

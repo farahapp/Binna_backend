@@ -231,6 +231,44 @@ class RegistrationDocumentsVerificationTest extends TestCase
     }
 
     #[Test]
+    public function stored_mime_type_is_detected_from_file_signature(): void
+    {
+        $applicant = Applicant::on('mysql')->create([
+            'email' => 'mime@example.test',
+            'email_verified_at' => now(),
+        ]);
+        $request = $this->registrations()->createDraft([
+            'name' => 'فرد',
+            'legal_type' => 'individual',
+            'activity_type' => 'owner',
+            'responsible_name' => 'مالك',
+            'identifiers' => [['type' => 'qid', 'number' => '27800119999']],
+            'applicant_email' => $applicant->email,
+        ], $applicant);
+
+        $pdf = app(RegistrationAttachmentService::class)->store(
+            $this->pdfUpload('proof.pdf'),
+            $request,
+            'applicant',
+            $applicant->id,
+            'identity_proof',
+        );
+        $this->assertSame('application/pdf', $pdf->mime_type);
+
+        $png = app(RegistrationAttachmentService::class)->store(
+            UploadedFile::fake()->createWithContent(
+                'photo.png',
+                "\x89PNG\r\n\x1a\n".str_repeat("\x00", 32),
+            ),
+            $request,
+            'applicant',
+            $applicant->id,
+            'identity_photo',
+        );
+        $this->assertSame('image/png', $png->mime_type);
+    }
+
+    #[Test]
     public function ocr_assistance_is_explicitly_unavailable_without_paid_provider(): void
     {
         $ocr = app(RegistrationOcrAssistance::class);
