@@ -101,5 +101,12 @@ class AppServiceProvider extends ServiceProvider
                 Limit::perMinute(5)->by('platform-web-auth-email:'.hash('sha256', $email)),
             ];
         });
+
+        RateLimiter::for('platform-whatsapp', function (Request $request) {
+            return [
+                Limit::perMinute(60)->by('platform-whatsapp-user:'.($request->user()?->getKey() ?? 'guest')),
+                Limit::perMinute(120)->by('platform-whatsapp-ip:'.$request->ip()),
+            ];
+        });
     }
 }

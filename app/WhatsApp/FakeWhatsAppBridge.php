@@ -109,6 +109,43 @@ class FakeWhatsAppBridge implements WhatsAppBridgeContract
         return $this->accounts[$slot][$role];
     }
 
+    public function reconnect(string $slot, string $role = 'active'): array
+    {
+        $row = &$this->accounts[$slot][$role];
+        $connected = ($row['status'] ?? '') === 'connected';
+        $row['status'] = $connected ? 'connected' : 'qr_pending';
+        $row['disconnect_reason'] = $connected ? null : 'reconnecting';
+        $row['last_seen_at'] = now()->toIso8601String();
+        $row['status_updated_at'] = now()->toIso8601String();
+        $row['heartbeat_seq'] = ($row['heartbeat_seq'] ?? 0) + 1;
+        $row['connection_state'] = $connected ? 'connected' : 'qr_pending';
+
+        return $row;
+    }
+
+    public function cancelPairing(string $slot, string $role = 'candidate'): array
+    {
+        $this->accounts[$slot][$role] = $this->blank($slot, $role);
+        $this->accounts[$slot][$role]['disconnect_reason'] = 'pairing_cancelled';
+        $this->accounts[$slot][$role]['last_error'] = 'pairing_cancelled';
+
+        return $this->accounts[$slot][$role];
+    }
+
+    public function disconnect(string $slot, string $role = 'active'): array
+    {
+        $row = &$this->accounts[$slot][$role];
+        $row['status'] = 'disconnected';
+        $row['connection_state'] = 'disconnected';
+        $row['disconnect_reason'] = 'disconnected_by_admin';
+        $row['last_disconnected_at'] = now()->toIso8601String();
+        $row['last_seen_at'] = now()->toIso8601String();
+        $row['status_updated_at'] = now()->toIso8601String();
+        $row['has_qr'] = false;
+
+        return $row;
+    }
+
     public function backup(string $slot): array
     {
         $this->backups[$slot] = true;
@@ -258,6 +295,15 @@ class FakeWhatsAppBridge implements WhatsAppBridgeContract
             'qr_expires_at' => null,
             'baileys_loaded' => false,
             'mock' => true,
+            'connection_state' => 'unknown',
+            'disconnect_reason' => null,
+            'last_seen_at' => null,
+            'status_updated_at' => null,
+            'heartbeat_seq' => 0,
+            'heartbeat_age_ms' => null,
+            'stale' => true,
+            'reconnect_attempt' => 0,
+            'bridge_instance_id' => 'fake-bridge',
         ];
     }
 }

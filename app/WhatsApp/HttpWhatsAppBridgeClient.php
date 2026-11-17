@@ -53,6 +53,21 @@ class HttpWhatsAppBridgeClient implements WhatsAppBridgeContract
         return $this->signed('POST', "/accounts/{$slot}/session/logout", ['role' => $role]);
     }
 
+    public function reconnect(string $slot, string $role = 'active'): array
+    {
+        return $this->signed('POST', "/accounts/{$slot}/session/reconnect", ['role' => $role]);
+    }
+
+    public function cancelPairing(string $slot, string $role = 'candidate'): array
+    {
+        return $this->signed('POST', "/accounts/{$slot}/session/cancel-pairing", ['role' => $role]);
+    }
+
+    public function disconnect(string $slot, string $role = 'active'): array
+    {
+        return $this->signed('POST', "/accounts/{$slot}/session/disconnect", ['role' => $role]);
+    }
+
     public function backup(string $slot): array
     {
         return $this->signed('POST', "/accounts/{$slot}/session/backup", []);

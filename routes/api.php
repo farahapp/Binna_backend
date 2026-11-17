@@ -45,6 +45,7 @@ use App\Http\Controllers\Platform\PlatformRepresentativeController;
 use App\Http\Controllers\Platform\PlatformTenantRegistrationController;
 use App\Http\Controllers\Platform\PlatformRegistrationDocumentRequirementController;
 use App\Http\Controllers\Platform\PlatformWhatsAppController;
+use App\Http\Controllers\Platform\PlatformWhatsAppIntegrationController;
 use App\Http\Controllers\Registration\ApplicantIdentityController;
 use App\Http\Controllers\Registration\ApplicantRegistrationController;
 use App\Http\Controllers\Registration\RepresentativeAuthController;
@@ -206,6 +207,48 @@ Route::prefix('platform')
         Route::post('/settings/whatsapp/security/recovery-test', [PlatformWhatsAppController::class, 'recoveryTest'])
             ->middleware('platform.permission:platform.settings.whatsapp.manage')
             ->name('settings.whatsapp.security.recovery-test');
+
+        // ── Platform Admin WhatsApp Management Centre ─────────────────────────
+        // Read and mutation permissions are intentionally separate. All QR and
+        // status responses are no-store; the bridge itself is never exposed.
+        Route::prefix('integrations/whatsapp')
+            ->name('integrations.whatsapp.')
+            ->group(function () {
+                Route::get('/', [PlatformWhatsAppIntegrationController::class, 'index'])
+                    ->middleware('platform.permission:platform.integrations.whatsapp.view')
+                    ->name('index');
+                Route::get('/accounts', [PlatformWhatsAppIntegrationController::class, 'accounts'])
+                    ->middleware('platform.permission:platform.integrations.whatsapp.view')
+                    ->name('accounts');
+                Route::get('/accounts/{account}/status', [PlatformWhatsAppIntegrationController::class, 'status'])
+                    ->middleware('platform.permission:platform.integrations.whatsapp.view')
+                    ->name('accounts.status');
+                Route::get('/accounts/{account}/events', [PlatformWhatsAppIntegrationController::class, 'events'])
+                    ->middleware('platform.permission:platform.integrations.whatsapp.view')
+                    ->name('accounts.events');
+
+                Route::middleware(['platform.permission:platform.integrations.whatsapp.manage', 'throttle:platform-whatsapp'])
+                    ->group(function () {
+                        Route::get('/accounts/{account}/qr', [PlatformWhatsAppIntegrationController::class, 'qr'])
+                            ->name('accounts.qr');
+                        Route::post('/accounts/{account}/connect', [PlatformWhatsAppIntegrationController::class, 'connect'])
+                            ->name('accounts.connect');
+                        Route::post('/accounts/{account}/qr/refresh', [PlatformWhatsAppIntegrationController::class, 'refreshQr'])
+                            ->name('accounts.qr.refresh');
+                        Route::post('/accounts/{account}/reconnect', [PlatformWhatsAppIntegrationController::class, 'reconnect'])
+                            ->name('accounts.reconnect');
+                        Route::post('/accounts/{account}/cancel-pairing', [PlatformWhatsAppIntegrationController::class, 'cancelPairing'])
+                            ->name('accounts.cancel-pairing');
+                        Route::post('/accounts/{account}/disconnect', [PlatformWhatsAppIntegrationController::class, 'disconnect'])
+                            ->name('accounts.disconnect');
+                        Route::post('/accounts/{account}/change-number', [PlatformWhatsAppIntegrationController::class, 'changeNumber'])
+                            ->name('accounts.change-number');
+                        Route::post('/accounts/{account}/sync-identity', [PlatformWhatsAppIntegrationController::class, 'syncIdentity'])
+                            ->name('accounts.sync-identity');
+                        Route::post('/accounts/{account}/approve', [PlatformWhatsAppIntegrationController::class, 'approve'])
+                            ->name('accounts.approve');
+                    });
+            });
 
         // Platform IAM uses shared-schema roles and permissions, never Tenant IAM.
         Route::get('/users', [PlatformUserController::class, 'index'])
